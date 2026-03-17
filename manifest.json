@@ -1,0 +1,16 @@
+{
+  "name": "MusicMoshiach",
+  "short_name": "MusicMoshiach",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#000000",
+  "theme_color": "#00ffff",
+  "icons": [
+    {
+      "src": "assets/audio/core/c.jpeg",
+      "sizes": "192x192",
+      "type": "image/jpeg"
+    }
+  ]
+}
