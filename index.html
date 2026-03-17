@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <title>MusicMoshiach</title>
+  <link rel="manifest" href="manifest.json">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+  <style>
+    :root { --hue: 30; --glow: hsl(var(--hue), 100%, 50%); --bg-tint: hsl(var(--hue), 100%, 5%); }
+    body { 
+      margin:0; background:#000; overflow:hidden; touch-action:none; 
+      font-family:sans-serif; -webkit-tap-highlight-color: transparent;
+      user-select: none; -webkit-user-select: none;
+    }
+    #console-frame { 
+      position:fixed; inset:-10px; border:10px solid var(--glow); 
+      box-shadow:inset 0 0 60px #0009, inset 0 0 25px var(--glow), 0 0 60px #fff3; 
+      z-index:50; pointer-events:none; border-radius:12px;
+    }
+    #bg-container, #canvas-container { 
+      position:fixed; 
+      top:42%; left:50%; 
+      width:calc(100vw - 40px); height:calc(100vw - 40px); 
+      transform: translate(-50%, -50%);
+      border-radius:6px; overflow:hidden; 
+    }
+    #bg-container { z-index:0; background-size:cover; background-position:center; transition:background-image 1.2s ease-in-out; border: 2px solid var(--glow); }
+    #canvas-container { z-index:1; pointer-events:none; }
+    
+    #odometer-container {
+      position: fixed;
+      top: calc(42% + (100vw - 40px)/2 + 10px);
+      left: 20px; right: 20px;
+      height: 60px;
+      z-index: 60;
+      pointer-events: none;
+    }
+    #ekg-canvas { width: 100%; height: 100%; filter: drop-shadow(0 0 5px var(--glow)); }
+
+    #hud { 
+      position:fixed; bottom:20px; left:20px; width:calc(100% - 40px); height:150px; 
+      background: linear-gradient(var(--bg-tint), #111); border-top:4px solid var(--glow); 
+      border-radius:2px; display:flex; flex-direction:column; align-items:center; justify-content:center; 
+      z-index:100; box-shadow:0 0 30px var(--glow); padding:5px; 
+    }
+    .deck { display:flex; gap:6px; justify-content:center; }
+    .btn { 
+      width:28px; height:28px; border-radius:50%; border:2.5px solid var(--glow); 
+      background:#000; color: white; display:flex; align-items:center; justify-content:center; 
+      box-shadow:0 0 15px var(--glow); font-size:18px; cursor: pointer; touch-action: manipulation;
+    }
+    #track-info { color:var(--glow); font-size:1.1rem; margin-bottom:10px; text-align:center; font-weight:bold; width: 90%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; letter-spacing: 2px; text-shadow: 0 0 10px var(--glow); }
+  </style>
+</head>
+<body onpointerdown="handleInteraction(event)">
+
+<div id="bg-container"></div>
+<div id="canvas-container"></div>
+<div id="odometer-container"><canvas id="ekg-canvas"></canvas></div>
+<div id="console-frame"></div>
+
+<div id="hud">
+  <div id="track-info">SYSTEM STANDBY</div>
+  <div id="progress-container" style="width:85%;height:5px;background:#222;border-radius:3px;margin-bottom:20px;position:relative; overflow:hidden;">
+    <div id="progress-bar" style="width:0%;height:100%;background:var(--glow);box-shadow: 0 0 10px var(--glow);"></div>
+  </div>
+  <div class="deck">
+    <div class="btn" onclick="skip(-1)">👈</div>
+    <div id="play-btn" class="btn" onclick="toggle()">▶️</div>
+    <div class="btn" onclick="skip(1)">👉</div>
+    <div class="btn" onclick="showPlaylist()">🎶</div>
+  </div>
+</div>
+
+<script>
+// CONFIG
+const playlist = ["9.mp3","10.mp3","11.mp3","12.mp3","13.mp3","14.mp3","15.mp3","16.mp3","17.mp3","1.mp3","2.mp3","3.mp3","4.mp3","5.mp3","6.mp3","7.mp3","8.mp3"];
+const songTitles = {"9.mp3":"9 • Casted Shadows","10.mp3":"10 • Fake Immortals","11.mp3":"11 • Origin Pulse","12.mp3":"12 • Sultan of Vishnu","13.mp3":"13 • Stray Signal","14.mp3":"14 • Ten Planet Command","15.mp3":"15 • The Reckoning","16.mp3":"16 • Silver Leaks","17.mp3":"17 • Fear Forced Fate","1.mp3":"1 • Diadem Radiance","2.mp3":"2 • King of glyphs","3.mp3":"3 • Its Made Me","4.mp3":"4 • The Resonance","5.mp3":"5 • Name In the diesel","6.mp3":"6 • Proof fortold","7.mp3":"7 • 2ruth4told","8.mp3":"8 • backlight antivision"};
+const assets = ['c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','aa','bb','cc','ii','jj','kk','ll','mm','nn','oo','2i','2k'];
+
+// STATE
+let trackIdx = 0, poolIdx = 1, isStarted = false;
+let audio = new Audio(), audioCtx, analyzer, dataArray;
+let scene, camera, renderer, mainSphere, texLoader, minis = [];
+let ekgCanvas, ekgCtx, ekgX = 0;
+let rotationSpeed = { x: 0.005, y: 0.012 };
+let spawnCounter = 0;
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+
+function handleInteraction(e) {
+  if(e.cancelable) e.preventDefault();
+  if (!isStarted) {
+    initThreeJS(); initAudio(); initEKG();
+    isStarted = true;
+    setInterval(cycleVisuals, 7500);
+    loadTrack(); 
+  } else {
+    if (!e.target.closest('.btn')) triggerChaos();
+  }
+}
+
+function initEKG() {
+  ekgCanvas = document.getElementById('ekg-canvas');
+  ekgCtx = ekgCanvas.getContext('2d');
+  ekgCanvas.width = ekgCanvas.offsetWidth;
+  ekgCanvas.height = ekgCanvas.offsetHeight;
+}
+
+function drawEKG() {
+  if (!dataArray) return;
+  ekgCtx.fillStyle = 'rgba(0, 0, 0, 0.15)';
+  ekgCtx.fillRect(0, 0, ekgCanvas.width, ekgCanvas.height);
+  
+  const currentColor = getComputedStyle(document.documentElement).getPropertyValue('--glow');
+  const bassLevel = dataArray[4] / 255;
+  const intensity = (dataArray[12] / 255) * (ekgCanvas.height * 0.95);
+  
+  ekgCtx.beginPath();
+  ekgCtx.lineWidth = 3 + (bassLevel * 2);
+  ekgCtx.strokeStyle = currentColor;
+  ekgCtx.shadowBlur = 15 * bassLevel;
+  ekgCtx.shadowColor = currentColor;
+  
+  ekgCtx.moveTo(ekgX, ekgCanvas.height/2);
+  ekgX += (4 + bassLevel * 5); // Speed up blip with bass
+  
+  if (ekgX > ekgCanvas.width) { ekgX = 0; ekgCtx.clearRect(0,0,ekgCanvas.width, ekgCanvas.height); }
+  
+  const y = (ekgCanvas.height/2) - (intensity * (Math.random() > 0.8 ? 1.2 : 0.05));
+  ekgCtx.lineTo(ekgX, y);
+  ekgCtx.stroke();
+  ekgCtx.shadowBlur = 0;
+}
+
+function triggerChaos() {
+  document.documentElement.style.setProperty('--hue', Math.random() * 360);
+  rotationSpeed.x = 0.08; rotationSpeed.y = 0.12;
+  setTimeout(() => { rotationSpeed.x = 0.005; rotationSpeed.y = 0.012; }, 1200);
+  for (let i = 0; i < 30; i++) spawnMini(true);
+}
+
+function spawnMini(isChaos = false) {
+  spawnCounter++;
+  const size = isChaos ? (0.08 + Math.random() * 0.15) : (0.15 + Math.random() * 0.1);
+  const mini = new THREE.Mesh(
+    new THREE.SphereGeometry(size, 16, 16),
+    new THREE.MeshBasicMaterial({map: mainSphere.material.map, transparent:true, opacity:0.9})
+  );
+  mini.position.copy(mainSphere.position);
+  
+  const angle = spawnCounter * GOLDEN_ANGLE;
+  const speed = isChaos ? (0.25 + Math.random() * 0.4) : (0.06 + (spawnCounter % 15) * 0.008);
+  
+  mini.userData = { 
+    vel: new THREE.Vector3(Math.cos(angle) * speed, Math.sin(angle) * speed, (Math.random()-0.5) * 0.2), 
+    life: isChaos ? 0.7 : 2.2,
+    rot: { x: Math.random()*0.1, y: Math.random()*0.1 }
+  };
+  scene.add(mini); minis.push(mini);
+}
+
+function cycleVisuals() {
+  poolIdx = (poolIdx + 1) % assets.length;
+  const currentCore = assets[poolIdx];
+  const currentBG = assets[(poolIdx - 1 + assets.length) % assets.length];
+  
+  if (mainSphere && texLoader) {
+    mainSphere.material.map = texLoader.load(`assets/audio/core/${currentCore}.jpeg`);
+  }
+  document.getElementById('bg-container').style.backgroundImage = `url('assets/audio/core/${currentBG}.jpeg')`;
+  document.documentElement.style.setProperty('--hue', Math.random() * 360);
+}
+
+function initThreeJS() {
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+  renderer = new THREE.WebGLRenderer({alpha:true, antialias:true});
+  const size = Math.min(window.innerWidth, window.innerHeight) - 40;
+  renderer.setSize(size, size);
+  document.getElementById('canvas-container').appendChild(renderer.domElement);
+  
+  texLoader = new THREE.TextureLoader();
+  mainSphere = new THREE.Mesh(new THREE.SphereGeometry(1.2, 32, 32), new THREE.MeshBasicMaterial({transparent:true, opacity:0.75}));
+  
+  // Set initial zig-zag
+  mainSphere.material.map = texLoader.load(`assets/audio/core/${assets[poolIdx]}.jpeg`);
+  document.getElementById('bg-container').style.backgroundImage = `url('assets/audio/core/${assets[poolIdx-1]}.jpeg')`;
+  
+  scene.add(mainSphere);
+  camera.position.z = 5;
+  animate();
+}
+
+function animate() {
+  requestAnimationFrame(animate);
+  if (mainSphere) {
+    mainSphere.rotation.y += rotationSpeed.y;
+    mainSphere.rotation.x += rotationSpeed.x;
+  }
+  if (dataArray) {
+    analyzer.getByteFrequencyData(dataArray);
+    drawEKG();
+    const pulse = dataArray[8]/255;
+    mainSphere.scale.setScalar(1 + pulse * 1.1);
+    if (pulse > 0.75) spawnMini(false);
+  }
+  for (let i = minis.length-1; i>=0; i--) {
+    const m = minis[i];
+    m.position.add(m.userData.vel);
+    m.rotation.x += m.userData.rot.x;
+    m.rotation.y += m.userData.rot.y;
+    m.userData.life -= 0.025;
+    m.material.opacity = m.userData.life;
+    if(m.userData.life <= 0) { scene.remove(m); minis.splice(i,1); }
+  }
+  renderer.render(scene, camera);
+}
+
+function loadTrack() {
+  audio.src = `assets/audio/${playlist[trackIdx]}`;
+  document.getElementById('track-info').innerText = songTitles[playlist[trackIdx]] || "DBM ACTIVE";
+  audio.play().catch(() => {});
+  document.getElementById('play-btn').innerText = '⏯️';
+}
+
+function toggle() { 
+  if(audio.paused) audio.play(); else audio.pause();
+  document.getElementById('play-btn').innerText = audio.paused ? '▶️' : '⏯️';
+}
+
+function skip(n) { trackIdx = (trackIdx + n + playlist.length) % playlist.length; loadTrack(); }
+
+function initAudio() {
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  analyzer = audioCtx.createAnalyser();
+  const source = audioCtx.createMediaElementSource(audio);
+  source.connect(analyzer);
+  analyzer.connect(audioCtx.destination);
+  dataArray = new Uint8Array(analyzer.frequencyBinCount);
+}
+
+audio.ontimeupdate = () => {
+  document.getElementById('progress-bar').style.width = `${(audio.currentTime / audio.duration) * 100}%`;
+};
+audio.onended = () => skip(1);
+
+window.onload = () => {
+  if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+};
+</script>
+</body>
+</html>
