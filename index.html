@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>MusicMoshiach</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+    <style>
+        :root { --hue: 30; --glow: hsl(var(--hue), 100%, 50%); }
+        body { margin: 0; background: #000; overflow: hidden; touch-action: none; font-family: sans-serif; }
+        
+        /* 20px GLOWING CONSOLE FRAME */
+        #console-frame {
+            position: fixed;
+            inset: 0;
+            border: 20px solid var(--glow);
+            box-shadow: 
+                inset 0 0 60px rgba(0,0,0,0.9),
+                inset 0 0 25px var(--glow),
+                0 0 60px rgba(255,255,255,0.15);
+            z-index: 50;
+            pointer-events: none;
+            border-radius: 12px;
+        }
+
+        /* Fixed Background inside frame */
+        #bg-container {
+            position: fixed; 
+            top: 20px; left: 20px;
+            width: calc(100vw - 40px); 
+            height: calc(100vh - 200px);
+            z-index: 0; 
+            background-size: cover; 
+            background-position: center;
+            transition: background-image 1.5s ease-in-out;
+        }
+
+        #canvas-container { 
+            position: fixed; 
+            top: 20px; left: 20px; right: 20px; bottom: 180px;
+            z-index: 1; 
+            pointer-events: none; 
+        }
+
+        /* HUD inside console bottom bezel */
+        #hud { 
+            position: fixed; 
+            bottom: 20px; left: 20px;
+            width: calc(100% - 40px); 
+            height: 160px; 
+            background: linear-gradient(#111, #222);
+            border-top: 5px solid var(--glow);
+            border-radius: 8px;
+            display: flex; flex-direction: column; 
+            align-items: center; justify-content: center; 
+            z-index: 100;
+            box-shadow: 0 0 40px var(--glow);
+        }
+        .deck { display: flex; gap: 15px; }
+        .btn { 
+            width: 30px; height: 30px; border-radius: 50%; border: 3px solid var(--glow); 
+            background: #111; display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 20px var(--glow); font-size: 12px; pointer-events: auto;
+        }
+        #ghost-btn { 
+            font-size: 2.5rem; margin-top: 5px; cursor: pointer;
+            filter: drop-shadow(0 0 10px var(--glow)); pointer-events: auto;
+        }
+    </style>
+</head>
+<body onclick="handleInput(event)">
+
+<div id="bg-container" style="background-image: url('assets/audio/bg/1.jpg');"></div>
+<div id="canvas-container"></div>
+<div id="console-frame"></div>
+
+<div id="hud">
+    <div class="deck">
+        <div class="btn" onclick="skip(-1)">⏮️</div>
+        <div id="play-btn" class="btn" onclick="toggle()">▶️</div>
+        <div class="btn" onclick="skip(1)">⏭️</div>
+        <div class="btn" onclick="chaos()">😈</div>
+    </div>
+    <div id="ghost-btn" onclick="installPWA()">👻</div>
+</div>
+
+<script>
+// Hardcoded Asset Arrays + NEW Fibonacci helpers
+const bgs = [1,10,11,12,13,14,15,16,17,18,19,20,21,22,24,25,26,27,28,29,35,36,37,47,51,52,53,54,56,57,58,59,60,61,62,63,70];
+const coreFiles = ['c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','aa','bb','cc','ii','jj','kk','ll','mm','nn','oo','2i','2k'];
+
+let trackIdx = 1, bgIdx = 0, coreIdx = 0;
+let audio = new Audio(), audioCtx, analyzer, dataArray;
+let scene, camera, renderer, mainSphere, texLoader;
+let isStarted = false, isMoving = false, deferredPrompt;
+let velocity = new THREE.Vector3(0.04, 0.04, 0);
+const minis = [];
+let spawnCounter = 0;
+const PHI = (1 + Math.sqrt(5)) / 2;                    // Golden ratio from Fibonacci
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));     // 137.5° Fibonacci spiral angle
+
+// PWA
+window.addEventListener('beforeinstallprompt', (e) => { e.preventDefault(); deferredPrompt = e; });
+async function installPWA() {
+    if (deferredPrompt) {
+        deferredPrompt.prompt();
+        await deferredPrompt.userChoice;
+        deferredPrompt = null;
+    }
+}
+
+function handleInput(e) {
+    if (!isStarted) {
+        initThreeJS();
+        initAudio();
+        isStarted = true;
+        setInterval(cycleBG, 10000);
+        setInterval(cycleCore, 5000);
+        return;
+    }
+    if (e.target.closest('.btn') || e.target.id === 'ghost-btn') return;
+    isMoving = !isMoving;
+    if (!isMoving) mainSphere.position.set(0, 0, 0);
+}
+
+function initThreeJS() {
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, (window.innerWidth - 40) / (window.innerHeight - 200), 0.1, 1000);
+    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(window.innerWidth - 40, window.innerHeight - 200);
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+    texLoader = new THREE.TextureLoader();
+    const geom = new THREE.SphereGeometry(1.2, 64, 64);
+    const mat = new THREE.MeshBasicMaterial({ 
+        map: texLoader.load(`assets/audio/core/c.jpeg`),
+        transparent: true, opacity: 0.5 
+    });
+    mainSphere = new THREE.Mesh(geom, mat);
+    scene.add(mainSphere);
+    camera.position.z = 5;
+    animate();
+}
+
+function spawnMini() {
+    spawnCounter++;
+    const currentMap = mainSphere.material.map;                 // ← exact replica of main
+    const miniGeom = new THREE.SphereGeometry(0.35, 32, 32);
+    const miniMat = new THREE.MeshBasicMaterial({
+        map: currentMap,
+        transparent: true,
+        opacity: 1.0
+    });
+    const mini = new THREE.Mesh(miniGeom, miniMat);
+    mini.position.copy(mainSphere.position);
+
+    // Fibonacci / Golden-ratio Vector3 spiral ejection
+    const angle = spawnCounter * GOLDEN_ANGLE;
+    const fibMod = (spawnCounter % 13) + 5;                     // Fibonacci-ish variation
+    const speed = 0.07 + fibMod * 0.008;
+    const vx = Math.cos(angle) * speed;
+    const vy = Math.sin(angle) * speed * PHI;                   // PHI stretch on Y
+    const vz = Math.sin(spawnCounter * PHI) * 0.04;             // 3D twist using golden ratio
+
+    mini.userData = { 
+        vel: new THREE.Vector3(vx, vy, vz),
+        life: 2.2 
+    };
+    scene.add(mini);
+    minis.push(mini);
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    if (!mainSphere) return;
+
+    mainSphere.rotation.y += 0.02;
+    
+    if (isMoving) {
+        mainSphere.position.add(velocity);
+        if (Math.abs(mainSphere.position.x) > 3.2) velocity.x *= -1;
+        if (Math.abs(mainSphere.position.y) > 2.2) velocity.y *= -1;
+    }
+
+    if (dataArray) {
+        analyzer.getByteFrequencyData(dataArray);
+        const pulse = dataArray[10] / 255;
+        mainSphere.scale.set(1 + pulse, 1 + pulse, 1 + pulse);
+        if (pulse > 0.82) spawnMini();                     // slightly easier trigger for spiral fun
+    }
+
+    // Update Fibonacci-spiral replica minis
+    for(let i = minis.length-1; i >= 0; i--) {
+        minis[i].position.add(minis[i].userData.vel);
+        minis[i].userData.life -= 0.018;
+        minis[i].material.opacity = minis[i].userData.life;   // fade out
+        minis[i].rotation.y += 0.025;
+
+        if (minis[i].userData.life <= 0) {
+            scene.remove(minis[i]);
+            minis.splice(i, 1);
+        }
+    }
+    renderer.render(scene, camera);
+}
+
+function toggle() {
+    if (!audio.src || audio.src === "") audio.src = `assets/audio/${trackIdx}.mp3`;
+    audio.paused ? audio.play() : audio.pause();
+    document.getElementById('play-btn').innerText = audio.paused ? '▶️' : '⏯️';
+}
+
+function skip(n) {
+    trackIdx = (trackIdx + n - 1 + 17) % 17 + 1;
+    audio.src = `assets/audio/${trackIdx}.mp3`;
+    audio.play();
+    document.getElementById('play-btn').innerText = '⏯️';
+}
+
+function cycleBG() {
+    bgIdx = (bgIdx + 1) % bgs.length;
+    document.getElementById('bg-container').style.backgroundImage = `url('assets/audio/bg/${bgs[bgIdx]}.jpg')`;
+}
+
+function cycleCore() {
+    coreIdx = (coreIdx + 1) % coreFiles.length;
+    mainSphere.material.map = texLoader.load(`assets/audio/core/${coreFiles[coreIdx]}.jpeg`);
+}
+
+function initAudio() {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyzer = audioCtx.createAnalyser();
+    const source = audioCtx.createMediaElementSource(audio);
+    source.connect(analyzer);
+    analyzer.connect(audioCtx.destination);
+    dataArray = new Uint8Array(analyzer.frequencyBinCount);
+}
+
+function chaos() { document.documentElement.style.setProperty('--hue', Math.random() * 360); }
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
