@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>MusicMoshiach</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+    <style>
+        :root { --hue: 30; --glow: hsl(var(--hue), 100%, 50%); }
+        body { margin: 0; background: #000; overflow: hidden; touch-action: none; font-family: sans-serif; }
+        #console-frame { position: fixed; inset: 0; border: 10px solid var(--glow); box-shadow: inset 0 0 60px rgba(0,0,0,0.9), inset 0 0 25px var(--glow), 0 0 60px rgba(255,255,255,0.15); z-index: 50; pointer-events: none; border-radius: 12px; }
+        #bg-container { position: fixed; top: 20px; left: 20px; width: calc(100vw - 40px); height: calc(100vw - 40px); z-index: 0; background-size: cover; background-position: center; transition: background-image 1.5s ease-in-out; border-radius: 12px; }
+        #canvas-container { position: fixed; top: 20px; left: 20px; width: calc(100vw - 40px); height: calc(100vw - 40px); z-index: 1; pointer-events: none; border-radius: 12px; overflow: hidden; }
+        #hud { position: fixed; bottom: 20px; left: 20px; width: calc(100% - 40px); height: 200px; background: linear-gradient(#111, #222); border-top: 5px solid var(--glow); border-radius: 8px; display: flex; flex-direction: column; align-items: center; justify-content: center; z-index: 100; box-shadow: 0 0 40px var(--glow); padding: 8px; }
+        .deck { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+        .btn { width: 38px; height: 38px; border-radius: 50%; border: 3px solid var(--glow); background: #111; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 20px var(--glow); font-size: 18px; pointer-events: auto; }
+        .btn-large { width: 48px; height: 48px; font-size: 28px; }
+        #track-info { color: var(--glow); font-size: 1.25rem; margin-bottom: 6px; text-align: center; max-width: 90%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: bold; }
+    </style>
+</head>
+<body>
+
+<div id="bg-container" style="background-image: url('assets/audio/bg/1.jpg');"></div>
+<div id="canvas-container"></div>
+<div id="console-frame"></div>
+
+<div id="hud">
+    <div id="track-info">9 • Casted Shadows</div>
+    
+    <div id="progress-container" style="width: 90%; height: 6px; background: #333; border-radius: 3px; margin: 6px 0; cursor: pointer; position: relative;">
+        <div id="progress-bar" style="width: 0%; height: 100%; background: var(--glow); border-radius: 3px; transition: width 0.2s linear;"></div>
+    </div>
+    
+    <div style="width: 90%; display: flex; justify-content: space-between; color: #aaa; font-size: 0.9rem; margin-bottom: 8px;">
+        <span id="current-time">0:00</span>
+        <span id="total-time">--:--</span>
+    </div>
+
+    <div style="width: 90%; display: flex; align-items: center; gap: 10px; margin: 6px 0;">
+        <span id="volume-icon" style="color: var(--glow); font-size: 1.3rem; cursor: pointer;" onclick="toggleMute()">🔊</span>
+        <div id="volume-container" style="flex: 1; height: 6px; background: #333; border-radius: 3px; cursor: pointer; position: relative;">
+            <div id="volume-bar" style="width: 80%; height: 100%; background: var(--glow); border-radius: 3px; transition: width 0.15s ease;"></div>
+        </div>
+        <span id="volume-value" style="color: #aaa; font-size: 0.9rem; min-width: 36px;">80%</span>
+    </div>
+
+    <div class="deck">
+        <div class="btn" onclick="skip(-1)">⏮️</div>
+        <div id="play-btn" class="btn" onclick="toggle()">▶️</div>
+        <div class="btn" onclick="skip(1)">⏭️</div>
+        <div class="btn" id="shuffle-btn" onclick="toggleShuffle()">🔀</div>
+        <div class="btn" onclick="showPlaylist()">📜</div>
+        <div class="btn btn-large" onclick="installPWA()" style="font-size: 28px;">👻</div>
+    </div>
+</div>
+
+<div id="playlist-overlay" style="position: fixed; inset: 0; background: rgba(0,0,0,0.92); z-index: 200; display: none; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(4px);">
+    <div style="width: 90%; max-width: 420px; max-height: 80vh; background: linear-gradient(#111, #1a1a1a); border: 3px solid var(--glow); border-radius: 12px; overflow: hidden; box-shadow: 0 0 40px var(--glow);">
+        <div style="padding: 12px 16px; background: #000; border-bottom: 2px solid var(--glow); display: flex; justify-content: space-between; align-items: center;">
+            <h3 style="margin: 0; color: var(--glow); font-size: 1.3rem;">Playlist • Moshiach Cycle</h3>
+            <span onclick="hidePlaylist()" style="font-size: 1.6rem; color: #aaa; cursor: pointer;">×</span>
+        </div>
+        <div id="playlist-list" style="overflow-y: auto; max-height: 60vh; padding: 8px;"></div>
+    </div>
+</div>
+
+<script>
+// ────────────────────────────────────────────────
+// CONFIG & STATE
+// ────────────────────────────────────────────────
+const playlist = ["9.mp3","10.mp3","11.mp3","12.mp3","13.mp3","14.mp3","15.mp3","16.mp3","17.mp3","1.mp3","2.mp3","3.mp3","4.mp3","5.mp3","6.mp3","7.mp3","8.mp3"];
+
+const songTitles = {
+    "9.mp3":"9 • Casted Shadows ","10.mp3":"10 • Fake Immortals","11.mp3":"11 • Origin Pulse","12.mp3":"12 • Sultan of Vishnu",
+    "13.mp3":"13 • Stray Signal","14.mp3":"14 • Ten Planet Command","15.mp3":"15 • The Reckoning","16.mp3":"16 • Silver Leaks",
+    "17.mp3":"17 • Fear Forced Fate ","1.mp3":"1 • Diadem Radiance","2.mp3":"2 • King of glyphs","3.mp3":"3 • Its Made Me","4.mp3":"4 • The Resonance",
+    "5.mp3":"5 • Name In the diesel","6.mp3":"6 • Proof fortold","7.mp3":"7 • 2ruth4told","8.mp3":"8 • backlight antivision"
+};
+
+const bgs = [1,10,11,12,13,14,15,16,17,18,19,20,21,22,24,25,26,27,28,29,35,36,37,47,51,52,53,54,56,57,58,59,60,61,62,63,70];
+const coreFiles = ['c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','aa','bb','cc','ii','jj','kk','ll','mm','nn','oo','2i','2k'];
+
+let trackIdx = 0, currentTime = 0, volume = 0.8, isMuted = false;
+let isShuffle = false, shuffleOrder = [], shufflePointer = 0;
+let audio = new Audio();
+let audioCtx, analyzer, dataArray, source;
+let scene, camera, renderer, mainSphere, texLoader;
+let isStarted = false, isMoving = false, deferredPrompt;
+let bgIdx = 0, coreIdx = 0;
+let velocity = new THREE.Vector3(0.04, 0.04, 0.03);
+const minis = [];
+let spawnCounter = 0;
+const PHI = (1 + Math.sqrt(5)) / 2;
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
+
+// Chaos control
+let lastChaosTime = 0;
+let chaosShake = { active: false, intensity: 0, timer: 0 };
+let chaosFlash = { active: false, timer: 0 };
+
+// ────────────────────────────────────────────────
+// PWA INSTALL
+// ────────────────────────────────────────────────
+window.addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferredPrompt = e; });
+async function installPWA() {
+    if (deferredPrompt) { deferredPrompt.prompt(); await deferredPrompt.userChoice; deferredPrompt = null; }
+}
+
+// ────────────────────────────────────────────────
+// INPUT: Tap anywhere (except HUD buttons) → CHAOS
+// ────────────────────────────────────────────────
+function handleInput(e) {
+    if (!isStarted) {
+        initThreeJS(); initAudio(); isStarted = true;
+        setInterval(cycleBG, 10000); setInterval(cycleCore, 5000);
+        loadTrack(); return;
+    }
+    if (e.target.closest('#hud .btn') || e.target.closest('#playlist-overlay')) return;
+    triggerChaos();
+}
+
+// ────────────────────────────────────────────────
+// INTENSE CHAOS EFFECTS
+// ────────────────────────────────────────────────
+function triggerChaos() {
+    const now = performance.now() / 1000;
+    if (now - lastChaosTime < 0.45) return;
+    lastChaosTime = now;
+
+    // 1. Rapid multi-hue shift
+    let hueShiftCount = 0;
+    const hueInterval = setInterval(() => {
+        document.documentElement.style.setProperty('--hue', Math.random() * 360);
+        hueShiftCount++;
+        if (hueShiftCount >= 5) clearInterval(hueInterval);
+    }, 80);
+
+    // 2. Stronger & longer camera shake
+    chaosShake = { active: true, intensity: 1.4 + Math.random() * 1.0, timer: 1.2 + Math.random() * 1.0 };
+
+    // 3. Massive particle explosion (60–120 minis)
+    const burstCount = 60 + Math.floor(Math.random() * 60);
+    for (let i = 0; i < burstCount; i++) spawnChaosMini();
+
+    // 4. Intense core texture glitch (fast & long)
+    let glitchCount = 0;
+    const glitchInterval = setInterval(() => {
+        coreIdx = Math.floor(Math.random() * coreFiles.length);
+        mainSphere.material.map = texLoader.load(`assets/audio/core/${coreFiles[coreIdx]}.jpeg`);
+        glitchCount++;
+        if (glitchCount >= 10 + Math.random() * 5) clearInterval(glitchInterval);
+    }, 60 + Math.random() * 60);
+
+    // 5. Main sphere flash & pulse
+    chaosFlash = { active: true, timer: 0.9 };
+    mainSphere.scale.setScalar(1.8 + Math.random() * 0.6); // instant grow
+
+    // 6. Extra normal minis if beat is strong
+    if (dataArray && dataArray[8]/255 > 0.7) {
+        for (let i = 0; i < 8 + Math.floor(Math.random()*6); i++) spawnMini();
+    }
+}
+
+// Explosive chaos minis
+function spawnChaosMini() {
+    spawnCounter++;
+    const map = mainSphere.material.map;
+    const mini = new THREE.Mesh(
+        new THREE.SphereGeometry(0.18 + Math.random()*0.22, 24, 24),
+        new THREE.MeshBasicMaterial({map, transparent:true, opacity:1})
+    );
+    mini.position.copy(mainSphere.position);
+
+    const theta = Math.random() * Math.PI * 2;
+    const phi = Math.random() * Math.PI;
+    const speed = 0.28 + Math.random() * 0.45;
+    const vx = Math.sin(phi) * Math.cos(theta) * speed;
+    const vy = Math.sin(phi) * Math.sin(theta) * speed;
+    const vz = Math.cos(phi) * speed;
+
+    mini.userData = {
+        vel: new THREE.Vector3(vx, vy, vz),
+        life: 0.5 + Math.random() * 1.1,
+        rotSpeed: {x: (Math.random()-0.5)*0.22, y: (Math.random()-0.5)*0.22, z: (Math.random()-0.5)*0.22}
+    };
+    scene.add(mini);
+    minis.push(mini);
+}
+
+// ────────────────────────────────────────────────
+// ANIMATE – handle chaos shake & flash
+// ────────────────────────────────────────────────
+function animate() {
+    requestAnimationFrame(animate);
+    if (!mainSphere) return;
+
+    mainSphere.rotation.y += 0.018;
+    mainSphere.rotation.x += 0.007;
+
+    if (isMoving) {
+        mainSphere.position.add(velocity);
+        if (Math.abs(mainSphere.position.x) > 3.5) velocity.x *= -1.1;
+        if (Math.abs(mainSphere.position.y) > 2.8) velocity.y *= -1.1;
+        if (Math.abs(mainSphere.position.z) > 4) velocity.z *= -1;
+    }
+
+    // Chaos shake
+    if (chaosShake.active) {
+        chaosShake.timer -= 1/60;
+        if (chaosShake.timer <= 0) {
+            chaosShake.active = false;
+        } else {
+            const amt = chaosShake.intensity * (chaosShake.timer / 2);
+            mainSphere.position.x += (Math.random()-0.5) * amt * 1.2;
+            mainSphere.position.y += (Math.random()-0.5) * amt * 0.9;
+            mainSphere.position.z += (Math.random()-0.5) * amt * 0.7;
+            mainSphere.rotation.x += (Math.random()-0.5) * amt * 0.08;
+            mainSphere.rotation.y += (Math.random()-0.5) * amt * 0.08;
+            mainSphere.rotation.z += (Math.random()-0.5) * amt * 0.06;
+        }
+    }
+
+    // Chaos flash pulse
+    if (chaosFlash.active) {
+        chaosFlash.timer -= 1/60;
+        if (chaosFlash.timer <= 0) {
+            chaosFlash.active = false;
+            mainSphere.material.opacity = 0.55;
+            mainSphere.scale.setScalar(1);
+        } else {
+            const t = chaosFlash.timer / 0.9;
+            mainSphere.material.opacity = 0.55 + Math.sin(t * Math.PI * 4) * 0.45;
+            mainSphere.scale.setScalar(1 + Math.sin(t * Math.PI * 6) * 0.8);
+        }
+    }
+
+    // Analyzer & normal minis
+    if (dataArray) {
+        analyzer.getByteFrequencyData(dataArray);
+        const pulse = dataArray[8]/255 * 1.6;
+        if (!chaosFlash.active) mainSphere.scale.setScalar(1 + pulse);
+        if (pulse > 0.75) spawnMini();
+        if (pulse > 0.95) spawnMini();
+    }
+
+    // Update all minis
+    for (let i = minis.length - 1; i >= 0; i--) {
+        const m = minis[i];
+        m.position.add(m.userData.vel);
+        m.rotation.x += m.userData.rotSpeed.x;
+        m.rotation.y += m.userData.rotSpeed.y;
+        m.rotation.z += m.userData.rotSpeed.z;
+        m.position.multiplyScalar(0.982); // slightly stronger drag
+        m.userData.life -= 0.024;
+        m.material.opacity = m.userData.life * 1.4; // brighter fade
+        if (m.userData.life <= 0) {
+            scene.remove(m);
+            minis.splice(i, 1);
+        }
+    }
+
+    renderer.render(scene, camera);
+}
+
+// ────────────────────────────────────────────────
+// (Keep all your existing functions: initThreeJS, spawnMini, formatTime, updateTrackInfo, setVolume, toggleMute, loadTrack, saveState, toggle, skip, generateShuffleOrder, toggleShuffle, showPlaylist, hidePlaylist, cycleBG, cycleCore, initAudio, event listeners, resize, startup load, SW registration at end)
+// ────────────────────────────────────────────────
+
+// Example: just paste your previous versions of these functions here
+// (initThreeJS, spawnMini normal, audio events, DOMContentLoaded, window.load with SW at very end)
+
+window.addEventListener('load', () => {
+    // ... your startup code (restore state, update UI, etc.) ...
+
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('sw.js').then(reg => console.log('SW ready')).catch(err => console.error(err));
+    }
+});
+</script>
+</body>
+</html>
