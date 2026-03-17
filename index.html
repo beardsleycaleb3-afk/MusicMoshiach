@@ -1,0 +1,172 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>MusicMoshiach</title>
+    <link rel="manifest" href="manifest.json">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+    <style>
+        :root { --hue: 30; --glow: hsl(var(--hue), 100%, 50%); }
+        body { margin: 0; background: #000; overflow: hidden; touch-action: none; font-family: sans-serif; }
+        
+        /* The Background Fix: Ensure it is visible behind the transparent canvas */
+        #bg-container {
+            position: fixed; inset: 0; z-index: 0;
+            background-size: cover; background-position: center;
+            transition: background-image 1.5s ease-in-out;
+        }
+
+        #canvas-container { position: fixed; inset: 0; z-index: 1; pointer-events: none; }
+
+        #hud { 
+            position: fixed; bottom: 0; width: 100%; height: 160px; 
+            background: linear-gradient(transparent, rgba(0,0,0,0.8) 40%); 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; 
+            z-index: 100; border-top: 1px solid var(--glow); 
+        }
+        .deck { display: flex; gap: 15px; }
+        .btn { 
+            width: 70px; height: 70px; border-radius: 50%; border: 3px solid var(--glow); 
+            background: rgba(17, 17, 17, 0.9); display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 20px var(--glow); font-size: 32px; cursor: pointer;
+        }
+        #ghost-btn { font-size: 2.5rem; margin-top: 5px; cursor: pointer; filter: drop-shadow(0 0 10px var(--glow)); }
+    </style>
+</head>
+<body onclick="startExperience(event)">
+
+<div id="bg-container" style="background-image: url('assets/audio/bg/1.jpg');"></div>
+<div id="canvas-container"></div>
+
+<div id="hud">
+    <div class="deck">
+        <div class="btn" onclick="skip(-1)">⏮️</div>
+        <div id="play-btn" class="btn" onclick="toggle()">▶️</div>
+        <div class="btn" onclick="skip(1)">⏭️</div>
+        <div class="btn" onclick="chaos()">🌈</div>
+    </div>
+    <div id="ghost-btn" onclick="installPWA()">👻👇</div>
+</div>
+
+<script>
+// Verified paths from your GitHub screenshots
+const bgs = [1, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 24, 25, 26, 27, 28, 29, 35, 36, 37, 47, 51, 52, 53, 54, 56, 57, 58, 59, 60, 61, 62, 63, 70];
+const coreFiles = ['c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','aa','bb','cc','ii','jj','kk','ll','mm','nn','oo','2i','2k'];
+
+let trackIdx = 1, bgIdx = 0, coreIdx = 0;
+let audio = new Audio(), audioCtx, analyzer, dataArray;
+let scene, camera, renderer, mainSphere, texLoader;
+let isStarted = false;
+const minis = [];
+
+function startExperience(e) {
+    if (!isStarted) {
+        initThreeJS();
+        initAudio();
+        isStarted = true;
+        setInterval(cycleBG, 10000); // 10s Background Cycle
+        setInterval(cycleCore, 5000); // 5s Core Cycle
+    }
+    // Spawn mini spheres on touch
+    if (e.target.tagName !== 'DIV') spawnMini(3);
+}
+
+function initThreeJS() {
+    scene = new THREE.Scene();
+    camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    
+    // CRITICAL: alpha: true makes the canvas transparent to see the BG
+    renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setClearColor(0x000000, 0); // Transparent clear color
+    document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+    texLoader = new THREE.TextureLoader();
+    const geom = new THREE.SphereGeometry(1.6, 64, 64);
+    const mat = new THREE.MeshBasicMaterial({ 
+        map: texLoader.load(`assets/audio/core/c.jpeg`),
+        transparent: true,
+        opacity: 0.5 
+    });
+    mainSphere = new THREE.Mesh(geom, mat);
+    scene.add(mainSphere);
+    camera.position.z = 5;
+    animate();
+}
+
+function cycleBG() {
+    bgIdx = (bgIdx + 1) % bgs.length;
+    const bgPath = `assets/audio/bg/${bgs[bgIdx]}.jpg`;
+    document.getElementById('bg-container').style.backgroundImage = `url('${bgPath}')`;
+}
+
+function cycleCore() {
+    coreIdx = (coreIdx + 1) % coreFiles.length;
+    const newTex = texLoader.load(`assets/audio/core/${coreFiles[coreIdx]}.jpeg`);
+    mainSphere.material.map = newTex;
+}
+
+function spawnMini(gen) {
+    if (gen <= 0) return;
+    const miniGeom = new THREE.SphereGeometry(0.6, 32, 32);
+    const miniMat = new THREE.MeshBasicMaterial({
+        map: texLoader.load(`assets/audio/core/${coreFiles[Math.floor(Math.random()*coreFiles.length)]}.jpeg`),
+        transparent: true, opacity: 0.5
+    });
+    const mini = new THREE.Mesh(miniGeom, miniMat);
+    
+    const angle = Math.random() * Math.PI * 2;
+    mini.userData = { 
+        vel: new THREE.Vector3(Math.cos(angle)*0.08, Math.sin(angle)*0.08, (Math.random()-0.5)*0.05),
+        life: 1.0 
+    };
+    scene.add(mini);
+    minis.push(mini);
+}
+
+function animate() {
+    requestAnimationFrame(animate);
+    if (mainSphere) mainSphere.rotation.y += 0.01;
+    
+    if (dataArray) {
+        analyzer.getByteFrequencyData(dataArray);
+        const pulse = dataArray[10] / 255;
+        mainSphere.scale.set(1 + pulse, 1 + pulse, 1 + pulse);
+    }
+
+    minis.forEach((m, i) => {
+        m.position.add(m.userData.vel);
+        m.userData.life -= 0.01;
+        m.material.opacity = m.userData.life * 0.5;
+        if (m.userData.life <= 0) {
+            scene.remove(m);
+            minis.splice(i, 1);
+        }
+    });
+
+    renderer.render(scene, camera);
+}
+
+function initAudio() {
+    audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    analyzer = audioCtx.createAnalyser();
+    const source = audioCtx.createMediaElementSource(audio);
+    source.connect(analyzer);
+    analyzer.connect(audioCtx.destination);
+    dataArray = new Uint8Array(analyzer.frequencyBinCount);
+}
+
+function toggle() {
+    if (audio.paused) { audio.src = `assets/audio/${trackIdx}.mp3`; audio.play(); } else audio.pause();
+    document.getElementById('play-btn').innerText = audio.paused ? '▶️' : '⏯️';
+}
+
+function skip(n) { trackIdx = (trackIdx + n - 1 + 17) % 17 + 1; toggle(); toggle(); }
+
+function chaos() { document.documentElement.style.setProperty('--hue', Math.random() * 360); }
+
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+</script>
+</body>
+</html>
