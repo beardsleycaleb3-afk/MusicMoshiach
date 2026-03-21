@@ -81,8 +81,8 @@
 <script>
 const playlist = ["9.mp3","10.mp3","11.mp3","12.mp3","13.mp3","14.mp3","15.mp3","16.mp3","17.mp3","18.mp3","19.mp3","20.mp3","1.mp3","2.mp3","3.mp3","4.mp3","5.mp3","6.mp3","7.mp3","8.mp3"];
 const songTitles = {"9.mp3":"Casted Shadows","10.mp3":"Fake Immortals","11.mp3":"Origin Pulse","12.mp3":"Sultan of Vishnu","13.mp3":"Stray Signal","14.mp3":"Ten Planet Command","15.mp3":"The Reckoning","16.mp3":"Silver Leaks","17.mp3":"Fear Forced Fate","1.mp3":"Diadem Radiance","2.mp3":"King of glyphs","3.mp3":"Its Made Me","4.mp3":"The Resonance","5.mp3":"Name In the diesel","6.mp3":"Proof fortold","7.mp3":"2ruth4told","8.mp3":"backlight antivision"};
-const coreFiles = ['c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','aa','bb','cc','ii','jj','kk','ll','mm','nn','oo','qq','pp'];
-const bgs = [1,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64];
+const coreFiles = ['c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','aa','bb','cc','ii','jj','kk','ll','mm','nn','oo','qq','pp','rr','ss','tt','uu','vv','ww','xx','yy','zz'];
+const bgs = [1,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65];
 
 let trackIdx = 0, poolIdx = 0, bgIdx = 0, isStarted = false, currentHue = 30;
 let audio = new Audio(), audioCtx, analyzer, dataArray;
@@ -117,7 +117,7 @@ function triggerChaos() {
   bgIdx = Math.floor(Math.random() * bgs.length);
   poolIdx = Math.floor(Math.random() * coreFiles.length);
   applyVisuals();
-  for (let i = 0; i < 8; i++) spawnMini(mainSphere.position, true);
+  for (let i = 0; i < 32; i++) spawnMini(mainSphere.position, true);
 }
 
 function changeColor(e) {
