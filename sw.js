@@ -1,4 +1,4 @@
-const CACHE_NAME = 'MusicMoshiach-v23';
+const CACHE_NAME = 'MusicMoshiach-v22';
 
 const urlsToCache = [
   './',
