@@ -16,7 +16,7 @@
       margin:0; background:#000; overflow:hidden; touch-action:none; 
       font-family:sans-serif; -webkit-tap-highlight-color: transparent;
       user-select: none; -webkit-user-select: none;
-      border: 10px solid var(--frame-color);
+      border: 30px solid var(--frame-color);
       box-sizing: border-box; height: 100vh;
     }
     #bg-container, #canvas-container { 
@@ -40,7 +40,7 @@
       padding: 10px; border: 4px solid var(--frame-color); box-sizing: border-box;
     }
     .btn { 
-      width:34px; height:34px; border:4px solid var(--btn-color); 
+      width:54px; height:54px; border:4px solid var(--btn-color); 
       background:#000; color: #fff; display:flex; align-items:center; 
       justify-content:center; cursor: pointer; touch-action: manipulation;
     }
@@ -49,9 +49,9 @@
     #vol-slider { width: 85%; height: 10px; appearance: none; background: #222; outline: none; }
     #vol-slider::-webkit-slider-thumb { appearance: none; width: 40px; height: 20px; background: var(--btn-color); }
 
-    #playlist-screen { position: fixed; inset: 0; background: #000; z-index: 200; display: none; flex-direction: column; padding: 10px; overflow-y: auto; }
-    .track-item { padding: 10px; color: var(--frame-color); border-bottom: 1px solid #222; font-size: 2.5rem; }
-    #track-info { color:var(--frame-color); font-size:2.5rem; font-weight:bold; text-align: center; }
+    #playlist-screen { position: fixed; inset: 0; background: #131; z-index: 200; display: none; flex-direction: column; padding: 10px; overflow-y: auto; }
+    .track-item { padding: 10px; color: var(--frame-color); border-bottom: 4px solid #222; font-size: 1.5rem; }
+    #track-info { color:var(--frame-color); font-size:1.5rem; font-weight:bold; text-align: center; }
     
     * { border-radius: 50 !important; }
   </style>
@@ -119,7 +119,7 @@ function handleInteraction(e) {
   if (!isStarted) {
     initThreeJS(); initAudio(); initEKG(); buildPlaylist();
     isStarted = true; loadTrack();
-    setInterval(autoCycleVisuals, 3500);
+    setInterval(autoCycleVisuals, 5500);
   } else {
     isRoaming = !isRoaming;
     if (isRoaming) velocity.set((Math.random()-0.5)*0.5, (Math.random()-0.5)*0.5, 0);
@@ -184,7 +184,7 @@ function drawMirroredWire(intensity) {
 }
 
 function spawnMini(sourcePos, isChaos = false) {
-  const mini = new THREE.Mesh(new THREE.SphereGeometry(isChaos ? 0.08 : 0.12, 12, 12), new THREE.MeshBasicMaterial({map: mainSphere.material.map, transparent:true, opacity:0.8}));
+  const mini = new THREE.Mesh(new THREE.SphereGeometry(isChaos ? 0.08 : 0.12, 12, 12), new THREE.MeshBasicMaterial({map: mainSphere.material.map, transparent:true, opacity:0.7}));
   const phi = (1 + Math.sqrt(5)) / 2;
   const i = minis.length;
   const lon = 2 * Math.PI * i / Math.pow(phi, 2);
@@ -195,7 +195,7 @@ function spawnMini(sourcePos, isChaos = false) {
     const t = mini.clone();
     t.material = mini.material.clone();
     t.material.opacity = 0.4 - (j * 0.08);
-    t.scale.setScalar(1 - (j * 0.15));
+    t.scale.setScalar(1 - (j * 0.25));
     scene.add(t);
     trails.push(t);
   }
@@ -222,7 +222,7 @@ function initThreeJS() {
   renderer.setSize(window.innerWidth - 20, window.innerHeight - 205);
   document.getElementById('canvas-container').appendChild(renderer.domElement);
   texLoader = new THREE.TextureLoader();
-  mainSphere = new THREE.Mesh(new THREE.SphereGeometry(0.8, 32, 32), new THREE.MeshBasicMaterial({transparent:true, opacity:0.85}));
+  mainSphere = new THREE.Mesh(new THREE.SphereGeometry(0.8, 32, 32), new THREE.MeshBasicMaterial({transparent:true, opacity:0.75}));
   applyVisuals();
   scene.add(mainSphere); camera.position.z = 6;
   animate();
