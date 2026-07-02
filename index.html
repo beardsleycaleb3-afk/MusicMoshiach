@@ -49,8 +49,9 @@
     #vol-slider { width: 85%; height: 10px; appearance: none; background: #222; outline: none; }
     #vol-slider::-webkit-slider-thumb { appearance: none; width: 40px; height: 20px; background: var(--btn-color); }
 
-    #playlist-screen { position: fixed; inset: 0; background: #131; z-index: 200; display: none; flex-direction: column; padding: 10px; overflow-y: auto; }
-    .track-item { padding: 10px; color: var(--frame-color); border-bottom: 4px solid #222; font-size: 1.5rem; }
+    #playlist-screen { position: fixed; inset: 0; background: #131; z-index: 200; display: none; flex-direction: column; padding: 10px; overflow-y: auto; touch-action: pan-y; }
+    #track-list { -webkit-overflow-scrolling: touch; }
+    .track-item { padding: 10px; color: var(--frame-color); border-bottom: 4px solid #222; font-size: 1.5rem; touch-action: manipulation; }
     #track-info { color:var(--frame-color); font-size:1.5rem; font-weight:bold; text-align: center; }
     
     * { border-radius: 50 !important; }
@@ -61,14 +62,14 @@
 <div id="bg-container"></div>
 <div id="canvas-container"></div>
 <div id="playlist-screen">
-    <div style="text-align:right; color:white; font-size:32px; padding: 10px;" onpointerdown="togglePlaylist()">✕</div>
+    <div style="text-align:right; color:white; font-size:32px; padding: 10px;" onpointerdown="togglePlaylist(event)">✕</div>
     <div id="track-list"></div>
 </div>
 
 <div id="hud">
   <div id="track-info">MusicMoshiach</div>
   <div id="odometer-container"><canvas id="ekg-canvas"></canvas></div>
-  <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="1" oninput="setVol(this.value)" onpointerdown="e=>e.stopPropagation()">
+  <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="1" oninput="setVol(this.value)" onpointerdown="event.stopPropagation()">
   <div class="deck">
     <div class="btn" onpointerdown="toggle(event)"><span>⏯️</span></div>
     <div class="btn" onpointerdown="skip(1, event)"><span>⏭️</span></div>
@@ -105,7 +106,10 @@ const songTitles = {"9.mp3":"99 to 1","10.mp3":"retribu x protocol","11.mp3":"Xe
                     "58.mp3": "When the curtain moves", "59.mp3": "wildcard subnet", "60.mp3": "yo my people",
                     "1.mp3":"Zero Son","2.mp3":"Aftertone 2","3.mp3":"Aint in the darkness","4.mp3":"Alpha-betz",
                     "5.mp3":"laphazeta x","6.mp3":"Birdseye","7.mp3":"Broken limits","8.mp3":"what you are"};
-const coreFiles = ['c','d','e','f','g','h','i','j','k','l','m','n','o','p','q','r','s','t','u','v','w','x','y','z','aa','bb','cc','ii','jj','kk','ll','mm','nn','oo','qq','pp','rr','ss','tt','uu','vv','ww','xx','yy','zz','aaa','bbb','ccc','ddd','eee','fff','iii','ggg','mmm',];
+
+// core images in assets/audio/core (base names without extension)
+const coreFiles = ['a','aa','aaa','b','bb','bbb','c','cc','ccc','d','dd','ddd','e','ee','eee','f','ff','fff','g','gg','ggg','h','hh','i','ii','iii','j','jj','jjj','k','kk','kkk','l','ll','lll','m','mm','mmm','n','nn','o','oo','p','pp','q','qq','r','rr','s','ss','t','tt','u','uu','v','vv','w','x','xx','y','yy','z','zz'];
+// background image index list (assets/audio/bg/<n>.jpg)
 const bgs = [1,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65];
 
 let trackIdx = 0, poolIdx = 0, bgIdx = 0, isStarted = false, currentHue = 30;
@@ -272,29 +276,66 @@ function animate() {
   renderer.render(scene, camera);
 }
 
-function loadTrack() { audio.src = `assets/audio/${playlist[trackIdx]}`; document.getElementById('track-info').innerText = songTitles[playlist[trackIdx]]; audio.play().catch(()=>{}); }
+function loadTrack() { audio.src = `assets/audio/${playlist[trackIdx]}`; document.getElementById('track-info').innerText = songTitles[playlist[trackIdx]] || playlist[trackIdx]; audio.play().catch(()=>{}); }
 function skip(n, e) { if(e) e.stopPropagation(); trackIdx = (trackIdx + n + playlist.length) % playlist.length; loadTrack(); }
 function applyVisuals() { 
-  const currentBG = bgs[poolIdx]; 
-  const currentCore = coreFiles[poolIdx]; 
+  const currentBG = bgs[bgIdx]; 
+  const currentCore = coreFiles[poolIdx % coreFiles.length]; 
   document.getElementById('bg-container').style.backgroundImage = `url('assets/audio/bg/${currentBG}.jpg')`; 
   if (mainSphere && texLoader) mainSphere.material.map = texLoader.load(`assets/audio/core/${currentCore}.jpeg`); 
 }
 function toggle(e) { if(e) e.stopPropagation(); audio.paused ? audio.play() : audio.pause(); }
 function setVol(v) { audio.volume = v; }
 function togglePlaylist(e) { if(e) e.stopPropagation(); const s = document.getElementById('playlist-screen'); s.style.display = s.style.display === 'flex' ? 'none' : 'flex'; }
+
 function buildPlaylist() { 
     const list = document.getElementById('track-list'); 
     playlist.forEach((track, i) => { 
         const item = document.createElement('div'); 
         item.className = 'track-item'; 
-        item.innerText = songTitles[track]; 
-        item.onpointerdown = (e) => { e.stopPropagation(); trackIdx = i; loadTrack(); togglePlaylist(); }; 
+        item.innerText = songTitles[track] || track; 
+        // Use pointerdown + pointerup to allow scrolling/drags without accidental selection
+        item.addEventListener('pointerdown', (e) => {
+            e.stopPropagation();
+            item._pointerDown = { x: e.clientX, y: e.clientY, time: Date.now() };
+        });
+        item.addEventListener('pointerup', (e) => {
+            e.stopPropagation();
+            const pd = item._pointerDown;
+            if (!pd) return;
+            const dx = Math.abs(e.clientX - pd.x);
+            const dy = Math.abs(e.clientY - pd.y);
+            const dt = Date.now() - pd.time;
+            // if movement was small and quick, treat as a tap/click
+            if (dx < 8 && dy < 8 && dt < 600) {
+                trackIdx = i; loadTrack(); togglePlaylist();
+            }
+            item._pointerDown = null;
+        });
+        item.addEventListener('pointercancel', () => { item._pointerDown = null; });
+
         list.appendChild(item); 
     }); 
 }
 function installApp(e) { if(e) e.stopPropagation(); alert("MusicMoshiach"); }
-function initAudio() { audioCtx = new (window.AudioContext || window.webkitAudioContext)(); analyzer = audioCtx.createAnalyser(); analyzer.fftSize = 256; const source = audioCtx.createMediaElementSource(audio); source.connect(analyzer); analyzer.connect(audioCtx.destination); dataArray = new Uint8Array(analyzer.frequencyBinCount); }
+
+function initAudio() { 
+  audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+  analyzer = audioCtx.createAnalyser();
+  analyzer.fftSize = 256;
+  try {
+    const source = audioCtx.createMediaElementSource(audio);
+    source.connect(analyzer);
+    analyzer.connect(audioCtx.destination);
+    dataArray = new Uint8Array(analyzer.frequencyBinCount);
+    audio.crossOrigin = "anonymous";
+  } catch(err) {
+    // Fallback if media element source cannot be created
+    console.warn('Audio initialization failed:', err);
+    analyzer = null; dataArray = null;
+  }
+}
+
 audio.onended = () => skip(1);
 
 if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
