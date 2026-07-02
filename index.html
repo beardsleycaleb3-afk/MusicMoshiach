@@ -32,26 +32,26 @@
       background: #000; display:flex; flex-direction:column; 
       align-items:center; justify-content:space-evenly; z-index:100; padding:5px; box-sizing: border-box;
     }
-    #odometer-container { width: 90%; height: 25px; background: #050505; border: 4px solid var(--frame-color); overflow: hidden; }
+    #odometer-container { width: 90%; height: 15px; background: #050505; border: 4px solid var(--frame-color); overflow: hidden; }
     #ekg-canvas { width: 100%; height: 100%; filter: drop-shadow(0 0 8px var(--frame-color)); }
 
     .deck { 
       display:flex; gap:8px; justify-content:center; width: 95%; 
-      padding: 10px; border: 4px solid var(--frame-color); box-sizing: border-box;
+      padding: 10px; border: 8px solid var(--frame-color); box-sizing: border-box;
     }
     .btn { 
-      width:54px; height:54px; border:4px solid var(--btn-color); 
+      width:44px; height:44px; border:14px solid var(--btn-color); 
       background:#000; color: #fff; display:flex; align-items:center; 
       justify-content:center; cursor: pointer; touch-action: manipulation;
     }
     .btn span { font-size: 22px; pointer-events: none; }
 
-    #vol-slider { width: 85%; height: 10px; appearance: none; background: #222; outline: none; }
+    #vol-slider { width: 55%; height: 20px; appearance: none; background: #222; outline: none; }
     #vol-slider::-webkit-slider-thumb { appearance: none; width: 40px; height: 20px; background: var(--btn-color); }
 
     #playlist-screen { position: fixed; inset: 0; background: #131; z-index: 200; display: none; flex-direction: column; padding: 10px; overflow-y: auto; touch-action: pan-y; }
     #track-list { -webkit-overflow-scrolling: touch; }
-    .track-item { padding: 10px; color: var(--frame-color); border-bottom: 4px solid #222; font-size: 1.5rem; touch-action: manipulation; }
+    .track-item { padding: 10px; color: var(--frame-color); border-bottom: 14px solid #222; font-size: 1.5rem; touch-action: manipulation; }
     #track-info { color:var(--frame-color); font-size:1.5rem; font-weight:bold; text-align: center; }
     
     * { border-radius: 50 !important; }
@@ -136,7 +136,7 @@ function handleInteraction(e) {
 }
 
 function autoCycleVisuals() {
-  bgIdx = (bgIdx + 1) % bgs.length;
+  bgIdx = (bgIdx + 2) % bgs.length;
   poolIdx = (poolIdx + 1) % coreFiles.length;
   applyVisuals();
 }
@@ -193,12 +193,12 @@ function spawnMini(sourcePos, isChaos = false) {
   const i = minis.length;
   const lon = 2 * Math.PI * i / Math.pow(phi, 2);
   
-  const trailCount = 5;
+  const trailCount = 55;
   const trails = [];
   for(let j=0; j<trailCount; j++) {
     const t = mini.clone();
     t.material = mini.material.clone();
-    t.material.opacity = 0.4 - (j * 0.08);
+    t.material.opacity = 0.84 - (j * 0.08);
     t.scale.setScalar(1 - (j * 0.25));
     scene.add(t);
     trails.push(t);
@@ -238,9 +238,9 @@ function animate() {
   drawMirroredWire(intensity);
 
   if (mainSphere) { 
-    mainSphere.rotation.y += (0.05 + intensity * 0.15); 
-    mainSphere.scale.setScalar(0.25 + intensity * 2.8); // Bass pulse
-    mainSphere.material.opacity = 0.6 + (intensity * 0.4);
+    mainSphere.rotation.y += (0.505 + intensity * 0.15); 
+    mainSphere.scale.setScalar(0.25 + intensity * 2.98); // Bass pulse
+    mainSphere.material.opacity = 0.68 + (intensity * 0.94);
     
     if (isRoaming) {
       mainSphere.position.add(velocity);
@@ -252,13 +252,13 @@ function animate() {
   for (let i = minis.length-1; i>=0; i--) {
     let m = minis[i], d = m.userData;
     d.history.unshift(m.position.clone());
-    if(d.history.length > 10) d.history.pop();
+    if(d.history.length > 1000) d.history.pop();
     
     // Orbit reacts to bass intensity
-    d.radius += (d.speed + (intensity * 0.22)) * d.dir; 
+    d.radius += (d.speed + (intensity * 0.822)) * d.dir; 
     d.angle += d.angleStep + (intensity * 0.68); 
     
-    const tf = (Math.sin(d.twinkle += 0.1) + 1) / 2;
+    const tf = (Math.sin(d.twinkle += 0.81) + 1) / 2;
     m.scale.setScalar((0.5 + tf) * (1 + intensity)); 
     m.position.x = mainSphere.position.x + Math.cos(d.angle) * d.radius;
     m.position.y = mainSphere.position.y + Math.sin(d.angle) * d.radius;
@@ -270,7 +270,7 @@ function animate() {
         t.scale.setScalar(m.scale.x * (1 - idx * 0.15));
     });
 
-    if (d.radius > 8) d.dir = -1;
+    if (d.radius > 18) d.dir = -1;
     if (d.radius <= 0.02 && d.dir == -1) { d.trails.forEach(t => scene.remove(t)); scene.remove(m); minis.splice(i,1); }
   }
   renderer.render(scene, camera);
