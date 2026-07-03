@@ -68,12 +68,14 @@
 
 <div id="hud">
   <div id="track-info">MusicMoshiach</div>
+  <div id="mode-label" style="color:var(--frame-color);font-size:1rem;">Mode: liquid</div>
   <div id="odometer-container"><canvas id="ekg-canvas"></canvas></div>
   <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="1" oninput="setVol(this.value)" onpointerdown="event.stopPropagation()">
   <div class="deck">
     <div class="btn" onpointerdown="toggle(event)"><span>⏯️</span></div>
     <div class="btn" onpointerdown="skip(1, event)"><span>⏭️</span></div>
     <div class="btn" onpointerdown="changeColor(event)"><span>👻</span></div>
+    <div class="btn" onpointerdown="cycleVisualMode(event)"><span>🎛️</span></div>
     <div class="btn" onpointerdown="togglePlaylist(event)"><span>🌶️</span></div>
     <div class="btn" onpointerdown="installApp(event)"><span>👾</span></div>
   </div>
@@ -81,28 +83,27 @@
 
 <script>
 const playlist = ["9.mp3","10.mp3","11.mp3","12.mp3","13.mp3","14.mp3","15.mp3","16.mp3","17.mp3",
-                  "18.mp3","19.mp3","20.mp3","21.mp3","22.mp3","23.mp3", "24.mp3","25.mp3","26.mp3",
-                  "27.mp3","28.mp3", "29.mp3","30.mp3","31.mp3", "32.mp3","33.mp3","34.mp3","35.mp3",
-                  "36.mp3","37.mp3", "38.mp3", "39.mp3", "40.mp3", "41.mp3", "42.mp3", "43.mp3",
-                  "44.mp3", "45.mp3", "46.mp3", "47.mp3", "48.mp3", "49.mp3", "50.mp3", "51.mp3", 
-                  "52.mp3", "53.mp3", "54.mp3", "55.mp3", "56.mp3", "57.mp3", "58.mp3", "59.mp3", 
-                  "60.mp3", "1.mp3","2.mp3","3.mp3","4.mp3","5.mp3","6.mp3","7.mp3","8.mp3"];
+                  "18.mp3","19.mp3","20.mp3","21.mp3","22.mp3","23.mp3","24.mp3","25.mp3","26.mp3",
+                  "27.mp3","28.mp3","29.mp3","30.mp3","31.mp3","32.mp3","33.mp3","34.mp3","35.mp3",
+                  "38.mp3","39.mp3","40.mp3","41.mp3","42.mp3","43.mp3","44.mp3","45.mp3","46.mp3","47.mp3",
+                  "48.mp3","49.mp3","50.mp3","51.mp3","52.mp3","53.mp3","55.mp3","56.mp3","57.mp3","58.mp3",
+                  "59.mp3","60.mp3","1.mp3","2.mp3","3.mp3","4.mp3","5.mp3","6.mp3","7.mp3","8.mp3"];
 const songTitles = {"9.mp3":"99 to 1","10.mp3":"retribu x protocol","11.mp3":"Xenon Rain",
                     "12.mp3":"Sultan of Vishnu","13.mp3":"Stray Signal","14.mp3":"Planet Commandments",
                     "15.mp3":"The Reckoning","16.mp3":"Time Leaks Silver","17.mp3":"Fear Forced Fate",
                     "18.mp3":"King of Glyphs","19.mp3":"dawns king","20.mp3":"red sunday",
                     "21.mp3":"Daylight made me","22.mp3":"death frequencies","23.mp3": "frequencies death",
-                    "24.mp3": "death frequency 2", "25.mp3": "false star", "26.mp3": "Fifteen Trillion", 
+                    "24.mp3": "death frequency 2", "25.mp3": "false star", "26.mp3": "Fifteen Trillion",
                     "27.mp3": "fractured shadow", "28.mp3": "FOD", "29.mp3": "FOD 4",
                     "30.mp3": "Gods King of Kings", "31.mp3": "Hidden Sultan of Vishnu",
                     "32.mp3": "hiss", "33.mp3": "Hook Will NAIL You", "34.mp3": "HOOKED ON THE HISS",
-                    "35.mp3": "Ignition Arch. X NanoFile", "36.mp3": "In the shadows", "37.mp3": "welded air", 
+                    "35.mp3": "Ignition Arch. X NanoFile",
                     "38.mp3": "limit breaks", "39.mp3": "MOON Monster Melody X Comment", "40.mp3": "New one",
-                    "41.mp3": "no blanking", "42.mp3": "noise swells", "43.mp3": "phantom X Hidden", 
-                    "44.mp3": "phoenix dark", "45.mp3": "planet command", "46.mp3": "Roll over Once", 
-                    "47.mp3": "rust fold", "48.mp3": "ss ii py f", "49.mp3": "ten by seven", 
-                    "50.mp3": "the dark","51.mp3": "the hook", "52.mp3": "THE TRUTH", "53.mp3": "The prophecy", 
-                    "54.mp3": "thrones empty","55.mp3": "tuned for death", "56.mp3": "unsteady echo", "57.mp3": "ur decension", 
+                    "41.mp3": "no blanking", "42.mp3": "noise swells", "43.mp3": "phantom X Hidden",
+                    "44.mp3": "phoenix dark", "45.mp3": "planet command", "46.mp3": "Roll over Once",
+                    "47.mp3": "rust fold", "48.mp3": "ss ii py f", "49.mp3": "ten by seven",
+                    "50.mp3": "the dark","51.mp3": "the hook", "52.mp3": "THE TRUTH", "53.mp3": "The prophecy",
+                    "55.mp3": "tuned for death", "56.mp3": "unsteady echo", "57.mp3": "ur decension",
                     "58.mp3": "When the curtain moves", "59.mp3": "wildcard subnet", "60.mp3": "yo my people",
                     "1.mp3":"Zero Son","2.mp3":"Aftertone 2","3.mp3":"Aint in the darkness","4.mp3":"Alpha-betz",
                     "5.mp3":"laphazeta x","6.mp3":"Birdseye","7.mp3":"Broken limits","8.mp3":"what you are"};
@@ -110,9 +111,10 @@ const songTitles = {"9.mp3":"99 to 1","10.mp3":"retribu x protocol","11.mp3":"Xe
 // core images in assets/audio/core (base names without extension)
 const coreFiles = ['a','aa','aaa','b','bb','bbb','c','cc','ccc','d','dd','ddd','e','ee','eee','f','ff','fff','g','gg','ggg','h','hh','i','ii','iii','j','jj','jjj','k','kk','kkk','l','ll','lll','m','mm','mmm','n','nn','o','oo','p','pp','q','qq','r','rr','s','ss','t','tt','u','uu','v','vv','w','x','xx','y','yy','z','zz'];
 // background image index list (assets/audio/bg/<n>.jpg)
-const bgs = [1,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,63,64,65];
+const bgs = [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,40,41,42,43,44,45,46,47,48,49,50,51,52,54,55,56,57,59,60,61,62,63,64,65];
 
-let trackIdx = 0, poolIdx = 0, bgIdx = 0, isStarted = false, currentHue = 30;
+let trackIdx = 0, poolIdx = 0, bgIdx = 0, isStarted = false, currentHue = 30, visualMode = 0;
+const visualModes = ['liquid','spiky','ripple','warp'];
 let audio = new Audio(), audioCtx, analyzer, dataArray;
 let scene, camera, renderer, mainSphere, texLoader, minis = [];
 let ekgCanvas, ekgCtx, isRoaming = false, velocity = new THREE.Vector3(0,0,0);
@@ -136,8 +138,15 @@ function handleInteraction(e) {
 }
 
 function autoCycleVisuals() {
-  bgIdx = (bgIdx + 2) % bgs.length;
+  advanceVisualCycle();
+}
+
+function advanceVisualCycle() {
+  visualMode = (visualMode + 1) % visualModes.length;
+  document.getElementById('mode-label').innerText = `Mode: ${visualModes[visualMode]}`;
+  bgIdx = (bgIdx + 1) % bgs.length;
   poolIdx = (poolIdx + 1) % coreFiles.length;
+  triggerChaos();
   applyVisuals();
 }
 
@@ -152,6 +161,16 @@ function changeColor(e) {
   e.stopPropagation();
   currentHue = (currentHue + 72) % 360;
   document.documentElement.style.setProperty('--hue', currentHue);
+}
+
+function cycleVisualMode(e) {
+  if (e) e.stopPropagation();
+  visualMode = (visualMode + 1) % visualModes.length;
+  document.getElementById('mode-label').innerText = `Mode: ${visualModes[visualMode]}`;
+  bgIdx = (bgIdx + 1) % bgs.length;
+  poolIdx = (poolIdx + 1) % coreFiles.length;
+  triggerChaos();
+  applyVisuals();
 }
 
 function initEKG() { 
@@ -223,19 +242,94 @@ function initThreeJS() {
   scene = new THREE.Scene();
   camera = new THREE.PerspectiveCamera(75, (window.innerWidth - 20) / (window.innerHeight - 205), 0.1, 1000);
   renderer = new THREE.WebGLRenderer({alpha:true, antialias:true});
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
   renderer.setSize(window.innerWidth - 20, window.innerHeight - 205);
   document.getElementById('canvas-container').appendChild(renderer.domElement);
+
+  scene.add(new THREE.AmbientLight(0x333333));
+  const pointLight = new THREE.PointLight(0xffffff, 1.4, 35);
+  pointLight.position.set(5, 6, 5);
+  scene.add(pointLight);
+
   texLoader = new THREE.TextureLoader();
-  mainSphere = new THREE.Mesh(new THREE.SphereGeometry(0.8, 32, 32), new THREE.MeshBasicMaterial({transparent:true, opacity:0.75}));
+  const geometry = new THREE.IcosahedronGeometry(1.6, 5);
+  const material = new THREE.MeshStandardMaterial({
+    transparent: true,
+    opacity: 0.82,
+    roughness: 0.22,
+    metalness: 0.45,
+    emissive: new THREE.Color(0x111111),
+    side: THREE.DoubleSide,
+    map: null
+  });
+  mainSphere = new THREE.Mesh(geometry, material);
+  mainSphere.userData.basePositions = geometry.attributes.position.array.slice();
+  scene.add(mainSphere);
+  camera.position.z = 6;
   applyVisuals();
-  scene.add(mainSphere); camera.position.z = 6;
   animate();
+}
+
+function updateAudioMesh(intensity) {
+  if (!dataArray || !mainSphere || !mainSphere.geometry) return;
+  const positions = mainSphere.geometry.attributes.position;
+  const normals = mainSphere.geometry.attributes.normal;
+  const basePositions = mainSphere.userData.basePositions;
+  const time = performance.now() * 0.002;
+
+  let lows = 0, mids = 0, highs = 0;
+  for (let i = 0; i < 16; i++) lows += dataArray[i] || 0;
+  for (let i = 16; i < 48; i++) mids += dataArray[i] || 0;
+  for (let i = 48; i < dataArray.length; i++) highs += dataArray[i] || 0;
+  lows /= 16 * 255;
+  mids /= 32 * 255;
+  highs /= (dataArray.length - 48) * 255;
+
+  for (let i = 0; i < positions.count; i++) {
+    const ix = i * 3;
+    const baseX = basePositions[ix];
+    const baseY = basePositions[ix + 1];
+    const baseZ = basePositions[ix + 2];
+    const normalX = normals.getX(i);
+    const normalY = normals.getY(i);
+    const normalZ = normals.getZ(i);
+    const radial = Math.sqrt(baseX*baseX + baseY*baseY + baseZ*baseZ);
+    const phase = time * 1.3 + i * 0.11;
+
+    let displacement = 0;
+    if (visualMode === 0) {
+      displacement = (intensity * 0.75 + mids * 0.32 + highs * 0.18) * 0.45;
+      displacement += Math.sin(phase) * 0.16;
+    } else if (visualMode === 1) {
+      displacement = (lows * 0.85 + mids * 0.25) * 0.9;
+      displacement += Math.abs(Math.cos(phase * 1.6)) * 0.24;
+      displacement += Math.sin(radial * 6 + time * 2.1) * 0.14;
+    } else if (visualMode === 2) {
+      displacement = Math.sin(radial * 10 - time * 2.2) * 0.22;
+      displacement += (mids + highs) * 0.6;
+      displacement += Math.cos(phase * 0.9) * 0.1;
+    } else {
+      displacement = (Math.sin(phase * 1.8) + Math.cos(phase * 2.2)) * 0.12;
+      displacement += (lows * 0.5 + highs * 0.6) * 0.55;
+      displacement += Math.sin(radial * 12 + time * 1.7) * 0.18;
+    }
+
+    positions.setXYZ(
+      i,
+      baseX + normalX * displacement,
+      baseY + normalY * displacement,
+      baseZ + normalZ * displacement
+    );
+  }
+  positions.needsUpdate = true;
+  mainSphere.geometry.computeVertexNormals();
 }
 
 function animate() {
   requestAnimationFrame(animate);
   let intensity = dataArray ? dataArray[1] / 255 : 0; // Bass-focused
   drawMirroredWire(intensity);
+  updateAudioMesh(intensity);
 
   if (mainSphere) { 
     mainSphere.rotation.y += (0.505 + intensity * 0.15); 
@@ -282,7 +376,14 @@ function applyVisuals() {
   const currentBG = bgs[bgIdx]; 
   const currentCore = coreFiles[poolIdx % coreFiles.length]; 
   document.getElementById('bg-container').style.backgroundImage = `url('assets/audio/bg/${currentBG}.jpg')`; 
-  if (mainSphere && texLoader) mainSphere.material.map = texLoader.load(`assets/audio/core/${currentCore}.jpeg`); 
+  if (mainSphere && texLoader) {
+    const texture = texLoader.load(`assets/audio/core/${currentCore}.jpeg`);
+    texture.wrapS = texture.wrapT = THREE.RepeatWrapping;
+    texture.repeat.set(1, 1);
+    mainSphere.material.map = texture;
+    mainSphere.material.emissive = new THREE.Color(`hsl(${(currentHue + bgIdx * 5) % 360}, 90%, 22%)`);
+    mainSphere.material.needsUpdate = true;
+  }
 }
 function toggle(e) { if(e) e.stopPropagation(); audio.paused ? audio.play() : audio.pause(); }
 function setVol(v) { audio.volume = v; }
@@ -337,6 +438,10 @@ function initAudio() {
 }
 
 audio.onended = () => skip(1);
+audio.addEventListener('error', () => {
+  console.warn(`Audio failed to load: ${audio.src}`);
+  skip(1);
+});
 
 if ('serviceWorker' in navigator) { navigator.serviceWorker.register('sw.js'); }
 </script>
