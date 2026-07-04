@@ -126,7 +126,7 @@ function handleInteraction(e) {
   if (!isStarted) {
     initThreeJS(); initAudio(); initEKG(); buildPlaylist();
     isStarted = true; loadTrack();
-    setInterval(autoCycleVisuals, 5500);
+    setInterval(autoCycleVisuals, 8800);
   } else {
     isRoaming = !isRoaming;
     if (isRoaming) velocity.set((Math.random()-0.5)*0.5, (Math.random()-0.5)*0.5, 0);
@@ -278,7 +278,7 @@ function spawnMini(sourcePos, isChaos = false) {
   const i = minis.length;
   const lon = 2 * Math.PI * i / Math.pow(phi, 2);
   
-  const trailCount = 55;
+  const trailCount = 10;
   const trails = [];
   for(let j=0; j<trailCount; j++) {
     const t = mini.clone();
@@ -420,7 +420,7 @@ function updateAudioMesh(intensity) {
   const positions = mainSphere.geometry.attributes.position;
   const normals = mainSphere.geometry.attributes.normal;
   const basePositions = mainSphere.userData.basePositions;
-  const time = performance.now() * 0.002;
+  const time = performance.now() * 0.02;
 
   let lows = 0, mids = 0, highs = 0;
   for (let i = 0; i < 16; i++) lows += dataArray[i] || 0;
@@ -494,7 +494,7 @@ function animate() {
     for (let i = minis.length-1; i>=0; i--) {
       let m = minis[i], d = m.userData;
       d.history.unshift(m.position.clone());
-      if(d.history.length > 1000) d.history.pop();
+      if(d.history.length > 10000) d.history.pop();
       
       // Orbit reacts to bass intensity
       d.radius += (d.speed + (intensity * 0.822)) * d.dir; 
