@@ -107,6 +107,15 @@
     "rootIcons": [
       "icon-192.png",
       "icon-512.png"
+    ],
+    "modules": [
+      "js/utils.js",
+      "js/glyphpoints.js",
+      "js/audio.js",
+      "js/visual.js",
+      "js/ui.js",
+      "js/input.js",
+      "js/orchestrator.js"
     ]
   }
 }
