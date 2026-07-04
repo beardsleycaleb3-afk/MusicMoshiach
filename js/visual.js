@@ -1,10 +1,10 @@
 // js/visual.js
-// WHAT DOES IT DO? Renders all 3D layered fading spheres, background, orbiting twin, and glyph particles
+// WHAT DOES IT DO? Renders all 3D layered fading spheres (50-90% opacity), background, orbiting twin, glyph particles
 // WHAT DOES IT OWN? Three.js scene, renderer, camera, core layers, particle systems
 // WHAT DOES IT NEED? GlyphPoints, Audio analysis values
 // WHAT DOES IT INPUT? Intensity, mids, highs, beat events
-// WHAT DOES IT OUTPUT? Real-time rendered visuals with 50-90% opacity fading copies
-// WHAT DOES IT CONNECT TO? Audio, Orchestrator, GlyphPoints
+// WHAT DOES IT OUTPUT? Real-time rendered visuals with fading copies
+// WHAT DOES IT CONNECT TO? Audio, GlyphPoints, Orchestrator
 // WHAT DOES IT HELP? Creates the stunning, reactive, multi-layered sphere system
 // WHAT DOES IT RETURN? Nothing (side effects on canvas)
 // WHAT DOES IT START? Three.js scene and render loop
@@ -40,7 +40,7 @@ export const Visual = {
     key.position.set(6, 10, 12);
     this.scene.add(key);
 
-    // Layered fading spheres (50% to 90% opacity)
+    // Layered fading spheres (50% to 90% opacity with scaling)
     for (let i = 0; i < 5; i++) {
       const geo = new THREE.IcosahedronGeometry(1.9 - i * 0.22, 5);
       const mat = new THREE.MeshPhongMaterial({
