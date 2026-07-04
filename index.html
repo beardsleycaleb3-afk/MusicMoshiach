@@ -331,6 +331,12 @@ const VisualLayer = {
   ekgCanvas: null,
   ekgCtx: null,
   miniBurst: [],
+  touchOrbiters: [],
+  cameraMode: 0,
+  chargeLevel: 0,
+  chargeMax: 18,
+  chargeDecay: 0.008,
+  explosionCooldown: 0,
   burstCooldown: 0,
   cameraShake: 0,
   lastDropAt: 0,
@@ -608,6 +614,130 @@ const VisualLayer = {
       }
     }
   },
+  spawnTouchOrbiters(event) {
+    if (!this.mainSphere || !this.camera) return;
+    const rect = document.body.getBoundingClientRect();
+    const xNorm = (event.clientX / rect.width) * 2 - 1;
+    const yNorm = -((event.clientY / rect.height) * 2 - 1);
+    const baseX = xNorm * 1.8;
+    const baseY = yNorm * 1.2;
+    const hue = (State.hue + Math.floor(event.clientX + event.clientY)) % 360;
+    const opacity = 0.72;
+    const count = 3 + Math.floor(Math.random() * 3);
+
+    for (let i = 0; i < count; i++) {
+      const size = 0.08 + Math.random() * 0.08;
+      const orbitRadius = 0.9 + Math.random() * 1.5;
+      const zOrbit = 0.4 + Math.random() * 1.1;
+      const particle = new THREE.Mesh(
+        new THREE.SphereGeometry(size, 12, 12),
+        new THREE.MeshStandardMaterial({
+          color: new THREE.Color(`hsl(${(hue + i * 30) % 360}, 90%, 62%)`),
+          transparent: true,
+          opacity,
+          emissive: new THREE.Color(`hsl(${(hue + i * 30 + 80) % 360}, 100%, 55%)`),
+          emissiveIntensity: 0.9,
+          roughness: 0.12,
+          metalness: 0.25,
+          blending: THREE.AdditiveBlending,
+          depthWrite: false,
+          side: THREE.DoubleSide
+        })
+      );
+      particle.position.set(baseX, baseY, -0.3);
+      particle.userData = {
+        angle: Math.random() * Math.PI * 2,
+        zAngle: Math.random() * Math.PI * 2,
+        speed: 0.008 + Math.random() * 0.015,
+        radius: orbitRadius,
+        zRadius: zOrbit,
+        phase: Math.random() * Math.PI * 2,
+        hue,
+        life: 1,
+        decay: 0.005 + Math.random() * 0.008,
+        alpha: opacity
+      };
+      this.scene.add(particle);
+      this.touchOrbiters.push(particle);
+    }
+  },
+  updateTouchOrbiters(intensity) {
+    const now = performance.now();
+    const chargeRatio = Math.min(1, this.chargeLevel / this.chargeMax);
+    for (let i = this.touchOrbiters.length - 1; i >= 0; i--) {
+      const orb = this.touchOrbiters[i];
+      const isSucking = chargeRatio > 0.45 || orb.userData.life < 0.35;
+      orb.userData.angle += orb.userData.speed * (1 + intensity * 1.5);
+      orb.userData.zAngle += orb.userData.speed * 0.9 * (1 + intensity * 0.8);
+      const angle = orb.userData.angle;
+      const zAngle = orb.userData.zAngle;
+      const targetX = Math.cos(angle + orb.userData.phase) * orb.userData.radius;
+      const targetY = Math.sin(angle - orb.userData.phase) * orb.userData.radius * 0.7;
+      const targetZ = Math.sin(zAngle + orb.userData.phase) * orb.userData.zRadius - 0.2;
+      orb.position.set(targetX, targetY, targetZ);
+      if (isSucking && this.mainSphere) {
+        orb.position.lerp(this.mainSphere.position, 0.03 + chargeRatio * 0.12 + intensity * 0.02);
+      }
+      orb.rotation.x += 0.015 + intensity * 0.01;
+      orb.rotation.y += 0.02 + intensity * 0.008;
+      const wave = 0.12 + Math.abs(Math.sin(now * 0.0012 + orb.userData.phase)) * 0.12;
+      orb.scale.setScalar(1 + wave * 0.18);
+      const alpha = Math.max(0.1, orb.userData.alpha * (0.8 + Math.sin(now * 0.0015 + orb.userData.phase) * 0.12));
+      orb.material.opacity = alpha;
+      orb.material.emissiveIntensity = 0.7 + Math.abs(Math.sin(now * 0.0016 + orb.userData.phase)) * 0.5;
+      const r = Math.floor(120 + 135 * Math.sin((orb.userData.hue + 0) * Math.PI / 180));
+      const g = Math.floor(80 + 175 * Math.sin((orb.userData.hue + 120) * Math.PI / 180));
+      const b = Math.floor(140 + 100 * Math.cos((orb.userData.hue + 240) * Math.PI / 180));
+      orb.material.color.setRGB(r / 255, g / 255, b / 255);
+      orb.userData.life -= orb.userData.decay + intensity * 0.001;
+      const dist = this.mainSphere ? orb.position.distanceTo(this.mainSphere.position) : Infinity;
+      if (orb.userData.life <= 0 || orb.material.opacity <= 0.08 || dist < 0.28) {
+        this.scene.remove(orb);
+        this.touchOrbiters.splice(i, 1);
+        if (dist < 0.28) {
+          this.spawnMiniBurst(0.8);
+          this.chargeLevel = Math.min(this.chargeMax, this.chargeLevel + 0.8);
+        }
+      }
+    }
+    this.chargeLevel = Math.max(0, this.chargeLevel - this.chargeDecay - intensity * 0.005);
+    if (this.chargeLevel >= this.chargeMax && performance.now() - this.explosionCooldown > 240) {
+      this.triggerChargeExplosion();
+    }
+  },
+  triggerChargeExplosion() {
+    const blastPower = Math.min(1, this.chargeLevel / this.chargeMax);
+    const burstCount = 6 + Math.floor(blastPower * 16);
+    for (let i = 0; i < burstCount; i++) {
+      this.spawnMiniBurst(0.9 + blastPower * 0.6);
+    }
+    this.cameraShake = Math.min(1.5, this.cameraShake + 0.6 + blastPower * 0.42);
+    this.chargeLevel = 0;
+    this.explosionCooldown = performance.now();
+    while (this.touchOrbiters.length) {
+      const orb = this.touchOrbiters.pop();
+      this.scene.remove(orb);
+    }
+  },
+  updateCameraView(intensity) {
+    if (!this.camera) return;
+    const t = performance.now() * 0.0006;
+    const shake = this.cameraShake;
+    if (this.cameraMode === 0) {
+      this.camera.position.set(Math.sin(t) * 0.16 + shake * 0.2, Math.cos(t) * 0.1 + shake * 0.1, 6);
+    } else if (this.cameraMode === 1) {
+      this.camera.position.set(4.0 + shake * 0.14, Math.sin(t * 1.2) * 1.0 + 1.4, Math.cos(t * 1.1) * 1.8 + 2.2);
+    } else if (this.cameraMode === 2) {
+      this.camera.position.set(Math.cos(t * 0.9) * 2.6 + shake * 0.1, 2.4 + shake * 0.16, Math.sin(t * 1.3) * 2.0 + 0.6);
+    } else {
+      this.camera.position.set(Math.sin(t * 1.1) * 2.8 + shake * 0.14, Math.cos(t * 1.3) * 1.9 + shake * 0.12, Math.sin(t * 0.7) * 2.6 + 1.8);
+      this.camera.rotation.order = 'ZYX';
+      this.camera.rotation.z = Math.sin(t * 0.4) * 0.12;
+    }
+    this.camera.lookAt(0, 0, 0);
+    this.camera.fov = 52 + Math.sin(t * 1.1) * 4 + (this.cameraMode === 3 ? 5 : 0);
+    this.camera.updateProjectionMatrix();
+  },
   animateSphere(intensity, bassHit) {
     if (!this.mainSphere) return;
 
@@ -655,7 +785,8 @@ const VisualLayer = {
   cycleVisualMode(e) {
     if (e) e.stopPropagation();
     State.visualMode = (State.visualMode + 1) % 4;
-    document.getElementById('mode-label').innerText = `Mode: ${['liquid','spiky','ripple','warp'][State.visualMode]}`;
+    this.cameraMode = (this.cameraMode + 1) % 4;
+    document.getElementById('mode-label').innerText = `Mode: ${['liquid','spiky','ripple','warp'][State.visualMode]} / View ${this.cameraMode + 1}`;
     this.updateAssets(State.trackIndex);
   },
   loop() {
@@ -675,6 +806,8 @@ const VisualLayer = {
     this.updateGeometry(intensity, mids, highs);
     this.animateSphere(intensity, bassHit);
     this.updateMiniBurst(intensity);
+    this.updateTouchOrbiters(intensity);
+    this.updateCameraView(intensity);
     this.drawWave(intensity);
     this.drawOverlay(intensity);
 
@@ -723,6 +856,7 @@ const InputLayer = {
     } else {
       AudioLayer.ensureRunning();
     }
+    VisualLayer.spawnTouchOrbiters(e);
   },
   skip(n, e) {
     if (e) e.stopPropagation();
