@@ -7,147 +7,591 @@
   <link rel="manifest" href="manifest.json">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
   <style>
-    /* LAYER: PRESENTATION */
-    :root { --hue: 30; --frame-color: hsl(var(--hue), 100%, 50%); --btn-color: hsl(calc(var(--hue) + 180), 100%, 50%); }
-    body { margin:0; background:#000; overflow:hidden; touch-action:none; font-family:sans-serif; border: 30px solid var(--frame-color); box-sizing: border-box; height: 100vh; }
-    #bg-container, #canvas-container { position:fixed; top:10px; left:10px; width:calc(100vw - 20px); height:calc(100vh - 195px); overflow:hidden; border-bottom: 10px solid var(--frame-color); }
-    #bg-container { z-index:0; background-size:cover; background-position:center; transition: background-image 0.5s ease-in-out; }
-    #canvas-container { z-index:1; pointer-events:none; }
-    #hud { position:fixed; bottom:0; left:0; width:100%; height:175px; background: #000; display:flex; flex-direction:column; align-items:center; justify-content:space-evenly; z-index:100; padding:5px; box-sizing: border-box; }
-    .deck { display:flex; gap:8px; justify-content:center; width: 95%; padding: 10px; border: 8px solid var(--frame-color); box-sizing: border-box; }
-    .btn { width:44px; height:44px; border:14px solid var(--btn-color); background:#000; color: #fff; display:flex; align-items:center; justify-content:center; cursor: pointer; touch-action: manipulation; }
-    #playlist-screen { position: fixed; inset: 0; background: #131; z-index: 200; display: none; flex-direction: column; padding: 10px; overflow-y: auto; }
-    .track-item { padding: 10px; color: var(--frame-color); border-bottom: 14px solid #222; font-size: 1.5rem; }
-    #track-info { color:var(--frame-color); font-size:1.5rem; font-weight:bold; text-align: center; }
+    :root {
+      --hue: 30;
+      --frame-color: hsl(var(--hue), 100%, 50%);
+      --btn-color: hsl(calc(var(--hue) + 180), 100%, 50%);
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: #000;
+      font-family: sans-serif;
+      touch-action: none;
+    }
+
+    body {
+      border: 30px solid var(--frame-color);
+    }
+
+    #bg-container,
+    #canvas-container,
+    #overlay-container {
+      position: fixed;
+      top: 10px;
+      left: 10px;
+      width: calc(100vw - 20px);
+      height: calc(100vh - 195px);
+      overflow: hidden;
+      border-bottom: 10px solid var(--frame-color);
+    }
+
+    #bg-container {
+      z-index: 0;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
+      transition: background-image 0.5s ease-in-out;
+      opacity: 1;
+    }
+
+    #canvas-container {
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    #overlay-container {
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    #hud {
+      position: fixed;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 175px;
+      z-index: 100;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-evenly;
+      padding: 5px;
+    }
+
+    #track-info {
+      color: var(--frame-color);
+      font-size: 1.5rem;
+      font-weight: bold;
+      text-align: center;
+    }
+
+    #mode-label {
+      color: var(--frame-color);
+      font-size: 1rem;
+      text-align: center;
+    }
+
+    #odometer-container {
+      width: 90%;
+      height: 15px;
+      background: #050505;
+      border: 4px solid var(--frame-color);
+      overflow: hidden;
+    }
+
+    #ekg-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+      filter: drop-shadow(0 0 8px var(--frame-color));
+    }
+
+    #overlay-canvas {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+
+    #vol-slider {
+      width: 55%;
+      height: 20px;
+      appearance: none;
+      background: #222;
+      outline: none;
+    }
+
+    #vol-slider::-webkit-slider-thumb {
+      appearance: none;
+      width: 40px;
+      height: 20px;
+      background: var(--btn-color);
+    }
+
+    .deck {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      width: 95%;
+      padding: 10px;
+      border: 8px solid var(--frame-color);
+    }
+
+    .btn {
+      width: 44px;
+      height: 44px;
+      border: 14px solid var(--btn-color);
+      background: #000;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
+
+    .btn span {
+      font-size: 22px;
+      pointer-events: none;
+    }
+
+    #playlist-screen {
+      position: fixed;
+      inset: 0;
+      background: #131;
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+      padding: 10px;
+      overflow-y: auto;
+      touch-action: pan-y;
+    }
+
+    #close-playlist {
+      text-align: right;
+      color: white;
+      font-size: 32px;
+      padding: 10px;
+      cursor: pointer;
+    }
+
+    .track-item {
+      padding: 10px;
+      color: var(--frame-color);
+      border-bottom: 14px solid #222;
+      font-size: 1.5rem;
+      touch-action: manipulation;
+    }
   </style>
 </head>
 <body onpointerdown="InputLayer.handle(event)">
 
-<div id="bg-container"></div>
-<div id="canvas-container"></div>
-<div id="playlist-screen">
-    <div style="text-align:right; color:white; font-size:32px; padding: 10px;" onpointerdown="UILayer.togglePlaylist(event)">✕</div>
-    <div id="track-list"></div>
-</div>
+  <div id="bg-container"></div>
+  <div id="canvas-container"></div>
+  <div id="overlay-container"><canvas id="overlay-canvas"></canvas></div>
 
-<div id="hud">
-  <div id="track-info">MusicMoshiach</div>
-  <div class="deck">
-    <div class="btn" onpointerdown="AudioLayer.toggle()"><span>⏯️</span></div>
-    <div class="btn" onpointerdown="InputLayer.skip(1)"><span>⏭️</span></div>
-    <div class="btn" onpointerdown="UILayer.changeColor()"><span>👻</span></div>
-    <div class="btn" onpointerdown="SimulationLayer.cycleVisualMode()"><span>🎛️</span></div>
-    <div class="btn" onpointerdown="UILayer.togglePlaylist()"><span>🌶️</span></div>
+  <div id="playlist-screen">
+    <div id="close-playlist" onpointerdown="UILayer.togglePlaylist(event)">✕</div>
+    <div id="track-list"></div>
   </div>
-</div>
+
+  <div id="hud">
+    <div id="track-info">MusicMoshiach</div>
+    <div id="mode-label">Mode: liquid</div>
+    <div id="odometer-container"><canvas id="ekg-canvas"></canvas></div>
+    <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="1" oninput="AudioLayer.setVolume(this.value)" onpointerdown="event.stopPropagation()">
+    <div class="deck">
+      <div class="btn" onpointerdown="AudioLayer.toggle(event)"><span>⏯️</span></div>
+      <div class="btn" onpointerdown="InputLayer.skip(1, event)"><span>⏭️</span></div>
+      <div class="btn" onpointerdown="UILayer.changeColor(event)"><span>👻</span></div>
+      <div class="btn" onpointerdown="VisualLayer.cycleVisualMode(event)"><span>🎛️</span></div>
+      <div class="btn" onpointerdown="UILayer.togglePlaylist(event)"><span>🌶️</span></div>
+    </div>
+  </div>
 
 <script>
-/* LAYER: DATA/CONTENT
-   1. Does: Maintains the registry of truth for song titles and assets.
-*/
+const State = {
+  started: false,
+  trackIndex: 0,
+  visualMode: 0,
+  hue: 30,
+  bpm: 0,
+  beatEnergy: 0,
+  lastBeatAt: 0,
+  queue: [],
+  history: [],
+  recentPeaks: [],
+  bgIndex: 0,
+  coreIndex: 0
+};
+
 const playlist = ["9.mp3","10.mp3","11.mp3","12.mp3","13.mp3","14.mp3","15.mp3","16.mp3","17.mp3","18.mp3","19.mp3","20.mp3","21.mp3","22.mp3","23.mp3","24.mp3","25.mp3","26.mp3","27.mp3","28.mp3","29.mp3","30.mp3","31.mp3","32.mp3","33.mp3","34.mp3","35.mp3","38.mp3","39.mp3","40.mp3","41.mp3","42.mp3","43.mp3","44.mp3","45.mp3","46.mp3","47.mp3","48.mp3","49.mp3","50.mp3","51.mp3","52.mp3","53.mp3","55.mp3","56.mp3","57.mp3","58.mp3","59.mp3","60.mp3","1.mp3","2.mp3","3.mp3","4.mp3","5.mp3","6.mp3","7.mp3","8.mp3"];
-const songTitles = {"9.mp3":"99 to 1","10.mp3":"retribu x protocol","11.mp3":"Xenon Rain","12.mp3":"Sultan of Vishnu","13.mp3":"Stray Signal","14.mp3":"Planet Commandments","15.mp3":"The Reckoning","16.mp3":"Time Leaks Silver","17.mp3":"Fear Forced Fate","18.mp3":"King of Glyphs","19.mp3":"dawns king","20.mp3":"red sunday","21.mp3":"Daylight made me","22.mp3":"death frequencies","23.mp3": "frequencies death","24.mp3": "death frequency 2", "25.mp3": "false star", "26.mp3": "Fifteen Trillion","27.mp3": "fractured shadow", "28.mp3": "FOD", "29.mp3": "FOD 4","30.mp3": "Gods King of Kings", "31.mp3": "Hidden Sultan of Vishnu","32.mp3": "hiss", "33.mp3": "Hook Will NAIL You", "34.mp3": "HOOKED ON THE HISS","35.mp3": "Ignition Arch. X NanoFile","38.mp3": "limit breaks", "39.mp3": "MOON Monster Melody X Comment", "40.mp3": "New one","41.mp3": "no blanking", "42.mp3": "noise swells", "43.mp3": "phantom X Hidden","44.mp3": "phoenix dark", "45.mp3": "planet command", "46.mp3": "Roll over Once","47.mp3": "rust fold", "48.mp3": "ss ii py f", "49.mp3": "ten by seven","50.mp3": "the dark","51.mp3": "the hook", "52.mp3": "THE TRUTH", "53.mp3": "The prophecy","55.mp3": "tuned for death", "56.mp3": "unsteady echo", "57.mp3": "ur decension","58.mp3": "When the curtain moves", "59.mp3": "wildcard subnet", "60.mp3": "yo my people","1.mp3":"Zero Son","2.mp3":"Aftertone 2","3.mp3":"Aint in the darkness","4.mp3":"Alpha-betz","5.mp3":"laphazeta x","6.mp3":"Birdseye","7.mp3":"Broken limits","8.mp3":"what you are"};
+
+const songTitles = {
+  "9.mp3":"99 to 1","10.mp3":"retribu x protocol","11.mp3":"Xenon Rain","12.mp3":"Sultan of Vishnu","13.mp3":"Stray Signal","14.mp3":"Planet Commandments","15.mp3":"The Reckoning","16.mp3":"Time Leaks Silver","17.mp3":"Fear Forced Fate","18.mp3":"King of Glyphs","19.mp3":"dawns king","20.mp3":"red sunday","21.mp3":"Daylight made me","22.mp3":"death frequencies","23.mp3":"frequencies death","24.mp3":"death frequency 2","25.mp3":"false star","26.mp3":"Fifteen Trillion","27.mp3":"fractured shadow","28.mp3":"FOD","29.mp3":"FOD 4","30.mp3":"Gods King of Kings","31.mp3":"Hidden Sultan of Vishnu","32.mp3":"hiss","33.mp3":"Hook Will NAIL You","34.mp3":"HOOKED ON THE HISS","35.mp3":"Ignition Arch. X NanoFile","38.mp3":"limit breaks","39.mp3":"MOON Monster Melody X Comment","40.mp3":"New one","41.mp3":"no blanking","42.mp3":"noise swells","43.mp3":"phantom X Hidden","44.mp3":"phoenix dark","45.mp3":"planet command","46.mp3":"Roll over Once","47.mp3":"rust fold","48.mp3":"ss ii py f","49.mp3":"ten by seven","50.mp3":"the dark","51.mp3":"the hook","52.mp3":"THE TRUTH","53.mp3":"The prophecy","55.mp3":"tuned for death","56.mp3":"unsteady echo","57.mp3":"ur decension","58.mp3":"When the curtain moves","59.mp3":"wildcard subnet","60.mp3":"yo my people","1.mp3":"Zero Son","2.mp3":"Aftertone 2","3.mp3":"Aint in the darkness","4.mp3":"Alpha-betz","5.mp3":"laphazeta x","6.mp3":"Birdseye","7.mp3":"Broken limits","8.mp3":"what you are"
+};
+
 const coreFiles = ['a.jpeg','aa.jpeg','aaa.jpeg','b.jpeg','bb.jpeg','bbb.jpeg','c.jpeg','cc.jpeg','ccc.jpeg','d.jpeg','dd.jpeg','ddd.jpeg','e.jpeg','ee.jpeg','eee.jpeg','f.jpeg','ff.jpeg','fff.jpeg','g.jpeg','gg.jpeg','ggg.jpeg','h.jpeg','hh.jpeg','i.jpeg','ii.jpeg','iii.jpeg','j.jpeg','jj.jpeg','jjj.jpeg','k.jpeg','kk.jpeg','kkk.jpeg','l.jpeg','ll.jpeg','lll.jpeg','m.jpeg','mm.jpeg','mmm.jpeg','n.jpeg','nn.jpeg','o.jpeg','oo.jpeg','p.jpeg','pp.jpeg','q.jpeg','qq.jpeg','r.jpeg','rr.jpeg','s.jpeg','ss.jpeg','t.jpeg','tt.jpeg','u.jpeg','uu.jpeg','v.jpeg','vv.jpeg','w.jpeg','x.jpeg','xx.jpeg','y.jpeg','yy.jpeg','z.jpeg','zz.jpeg'];
+
 const bgs = ['1.jpg','2.jpg','3.jpg','4.jpg','5.jpg','6.jpg','7.jpg','8.jpg','9.jpg','10.jpg','11.jpg','12.jpg','13.jpg','14.jpg','15.jpg','16.jpg','17.jpg','18.jpg','19.jpg','20.jpg','21.jpg','22.jpg','23.jpg','24.jpg','25.jpg','26.jpg','27.jpg','28.jpg','29.jpg','30.jpg','31.jpg','32.jpg','33.jpg','34.jpg','35.jpg','36.jpg','37.jpg','38.jpg','40.jpg','41.jpg','42.jpg','43.jpg','44.jpg','45.jpg','46.jpg','47.jpg','48.jpg','49.jpg','50.jpg','51.jpg','52.jpg','54.jpg','55.jpg','56.jpg','57.jpg','59.jpg','60.jpg','61.jpg','62.jpg','63.jpg','64.jpg','65.jpg'];
 
-/* LAYER: AUDIO ENGINE */
 const AudioLayer = {
   audio: new Audio(),
+  ctx: null,
   analyzer: null,
-  data: new Uint8Array(64),
+  data: new Uint8Array(128),
+  source: null,
   init() {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    this.analyzer = ctx.createAnalyser();
-    this.analyzer.fftSize = 128;
-    const source = ctx.createMediaElementSource(this.audio);
-    source.connect(this.analyzer);
-    this.analyzer.connect(ctx.destination);
+    if (this.ctx) return;
+    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    this.analyzer = this.ctx.createAnalyser();
+    this.analyzer.fftSize = 256;
+    this.analyzer.smoothingTimeConstant = 0.8;
+    this.source = this.ctx.createMediaElementSource(this.audio);
+    this.source.connect(this.analyzer);
+    this.analyzer.connect(this.ctx.destination);
+    this.audio.crossOrigin = "anonymous";
+    this.audio.volume = 1;
+  },
+  ensureRunning() {
+    if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
+  },
+  getBins() {
+    if (!this.analyzer) return this.data;
+    this.analyzer.getByteFrequencyData(this.data);
+    return this.data;
   },
   getIntensity() {
-    this.analyzer.getByteFrequencyData(this.data);
-    return this.data[1] / 255;
+    const bins = this.getBins();
+    let sum = 0;
+    for (let i = 0; i < 24; i++) sum += bins[i];
+    return sum / (24 * 255);
   },
-  toggle() { this.audio.paused ? this.audio.play() : this.audio.pause(); },
-  play(url) { 
-    this.audio.src = `assets/audio/${url}`; 
-    this.audio.play(); 
-    document.getElementById('track-info').innerText = songTitles[url] || url;
+  getMids() {
+    const bins = this.getBins();
+    let sum = 0;
+    for (let i = 24; i < 72; i++) sum += bins[i];
+    return sum / (48 * 255);
+  },
+  getHighs() {
+    const bins = this.getBins();
+    let sum = 0;
+    for (let i = 72; i < 128; i++) sum += bins[i];
+    return sum / (56 * 255);
+  },
+  detectBeat() {
+    const bins = this.getBins();
+    let bass = 0;
+    for (let i = 0; i < 8; i++) bass += bins[i];
+    bass = bass / (8 * 255);
+    const now = performance.now();
+    const hit = bass > 0.42 && now - State.lastBeatAt > 180;
+    if (hit) {
+      State.lastBeatAt = now;
+      State.recentPeaks.push(now);
+      if (State.recentPeaks.length > 8) State.recentPeaks.shift();
+      State.queue.push({ type: 'beat', at: now, strength: bass });
+    }
+    return hit ? bass : 0;
+  },
+  loadTrack(index) {
+    State.trackIndex = index;
+    this.audio.src = `assets/audio/${playlist[index]}`;
+    document.getElementById('track-info').innerText = songTitles[playlist[index]] || playlist[index];
+    VisualLayer.updateAssets(index);
+    this.audio.play().catch(() => {});
+    this.ensureRunning();
+  },
+  toggle(e) {
+    if (e) e.stopPropagation();
+    this.audio.paused ? this.audio.play().catch(() => {}) : this.audio.pause();
+    this.ensureRunning();
+  },
+  setVolume(v) {
+    this.audio.volume = Number(v);
   }
 };
 
-/* LAYER: SIMULATION/ENGINE */
-const SimulationLayer = {
+const VisualLayer = {
   scene: new THREE.Scene(),
-  texCache: {},
-  visualMode: 0,
-  mainSphere: null,
+  renderer: null,
+  camera: null,
   texLoader: new THREE.TextureLoader(),
-  
+  textureCache: new Map(),
+  mainSphere: null,
+  overlayCanvas: null,
+  overlayCtx: null,
+  ekgCanvas: null,
+  ekgCtx: null,
+  miniBurst: [],
+  lastDropAt: 0,
+  drift: new THREE.Vector3(0, 0, 0),
+  bounds: { x: 2.0, y: 1.3 },
   init() {
-    this.renderer = new THREE.WebGLRenderer({alpha:true});
-    this.renderer.setSize(window.innerWidth-20, window.innerHeight-205);
+    this.renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true, powerPreference: 'high-performance' });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    this.renderer.setSize(window.innerWidth - 20, window.innerHeight - 205);
+    this.renderer.setClearColor(0x000000, 0);
     document.getElementById('canvas-container').appendChild(this.renderer.domElement);
-    this.camera = new THREE.PerspectiveCamera(75, 1, 0.1, 1000);
+
+    this.camera = new THREE.PerspectiveCamera(55, (window.innerWidth - 20) / (window.innerHeight - 205), 0.1, 1000);
     this.camera.position.z = 6;
-    this.mainSphere = new THREE.Mesh(new THREE.IcosahedronGeometry(1.6, 5), new THREE.MeshStandardMaterial({transparent:true}));
+
+    this.scene.add(new THREE.AmbientLight(0x2a2a2a));
+    const key = new THREE.DirectionalLight(0xffffff, 1.2);
+    key.position.set(4, 5, 6);
+    this.scene.add(key);
+
+    const geo = new THREE.IcosahedronGeometry(1.6, 4);
+    const mat = new THREE.MeshStandardMaterial({
+      transparent: true,
+      opacity: 0.68,
+      roughness: 0.22,
+      metalness: 0.42,
+      emissive: new THREE.Color(0x111111),
+      side: THREE.DoubleSide,
+      depthWrite: false
+    });
+    this.mainSphere = new THREE.Mesh(geo, mat);
+    this.mainSphere.userData.basePositions = geo.attributes.position.array.slice();
+    this.mainSphere.renderOrder = 2;
     this.scene.add(this.mainSphere);
+
+    this.overlayCanvas = document.getElementById('overlay-canvas');
+    this.overlayCtx = this.overlayCanvas.getContext('2d');
+    this.ekgCanvas = document.getElementById('ekg-canvas');
+    this.ekgCtx = this.ekgCanvas.getContext('2d');
+    this.resize();
     this.loop();
   },
-  updateVisuals(idx) {
-    const file = coreFiles[idx % coreFiles.length];
-    const path = `assets/audio/core/${file}`;
-    if (!this.texCache[path]) this.texCache[path] = this.texLoader.load(path);
-    this.mainSphere.material.map = this.texCache[path];
-    this.mainSphere.material.needsUpdate = true;
-    document.getElementById('bg-container').style.backgroundImage = `url('assets/audio/bg/${bgs[idx % bgs.length]}')`;
+  resize() {
+    const w = window.innerWidth - 20;
+    const h = window.innerHeight - 205;
+    if (this.renderer) this.renderer.setSize(w, h);
+    if (this.camera) {
+      this.camera.aspect = w / h;
+      this.camera.updateProjectionMatrix();
+    }
+    if (this.overlayCanvas) {
+      this.overlayCanvas.width = this.overlayCanvas.offsetWidth;
+      this.overlayCanvas.height = this.overlayCanvas.offsetHeight;
+    }
+    if (this.ekgCanvas) {
+      this.ekgCanvas.width = this.ekgCanvas.offsetWidth;
+      this.ekgCanvas.height = this.ekgCanvas.offsetHeight;
+    }
   },
-  cycleVisualMode() { this.visualMode = (this.visualMode + 1) % 5; },
+  loadTexture(path) {
+    if (this.textureCache.has(path)) return this.textureCache.get(path);
+    const tex = this.texLoader.load(path);
+    this.textureCache.set(path, tex);
+    return tex;
+  },
+  updateAssets(index) {
+    const corePath = `assets/audio/core/${coreFiles[index % coreFiles.length]}`;
+    const bgPath = `assets/audio/bg/${bgs[index % bgs.length]}`;
+    document.getElementById('bg-container').style.backgroundImage = `url('${bgPath}')`;
+    if (this.mainSphere) {
+      this.mainSphere.material.map = this.loadTexture(corePath);
+      this.mainSphere.material.opacity = 0.68;
+      this.mainSphere.material.needsUpdate = true;
+    }
+  },
+  updateGeometry(intensity, mids, highs) {
+    if (!this.mainSphere) return;
+    const positions = this.mainSphere.geometry.attributes.position;
+    const normals = this.mainSphere.geometry.attributes.normal;
+    const base = this.mainSphere.userData.basePositions;
+    const t = performance.now() * 0.0012;
+
+    for (let i = 0; i < positions.count; i++) {
+      const ix = i * 3;
+      const bx = base[ix];
+      const by = base[ix + 1];
+      const bz = base[ix + 2];
+      const nx = normals.getX(i);
+      const ny = normals.getY(i);
+      const nz = normals.getZ(i);
+      const radius = Math.sqrt(bx * bx + by * by + bz * bz);
+      const wave = Math.sin(t * 2.2 + i * 0.08) * 0.08;
+      const swell = (intensity * 0.56) + (mids * 0.34) + (highs * 0.12);
+      const distortion = swell * 0.85 + wave + Math.sin(radius * 8 - t * 4) * 0.05;
+      positions.setXYZ(i, bx + nx * distortion, by + ny * distortion, bz + nz * distortion);
+    }
+
+    positions.needsUpdate = true;
+    this.mainSphere.geometry.computeVertexNormals();
+  },
+  drawWave(intensity) {
+    if (!this.ekgCtx) return;
+    const ctx = this.ekgCtx;
+    const c = this.ekgCanvas;
+    const bins = AudioLayer.getBins();
+    ctx.clearRect(0, 0, c.width, c.height);
+    ctx.beginPath();
+    ctx.lineWidth = 2 + intensity * 3;
+    ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--frame-color');
+
+    const midY = c.height / 2;
+    const steps = 48;
+    const step = c.width / steps;
+
+    for (let i = 0; i < steps; i++) {
+      const v = bins[i] / 255;
+      const y = midY - v * c.height * (0.45 + intensity * 0.6);
+      const x = i * step;
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    }
+    ctx.stroke();
+  },
+  drawOverlay(intensity) {
+    if (!this.overlayCtx) return;
+    const ctx = this.overlayCtx;
+    const c = this.overlayCanvas;
+    ctx.clearRect(0, 0, c.width, c.height);
+
+    const now = performance.now();
+    for (const item of State.queue) {
+      if (item.type === 'beat') {
+        const age = now - item.at;
+        const life = 420;
+        if (age < life) {
+          const p = age / life;
+          const alpha = 1 - p;
+          const rad = (c.width * 0.08) + (item.strength * c.width * 0.24) * (1 + p);
+          ctx.beginPath();
+          ctx.arc(c.width * 0.5, c.height * 0.5, rad, 0, Math.PI * 2);
+          ctx.strokeStyle = `hsla(${State.hue}, 100%, 60%, ${alpha * 0.7})`;
+          ctx.lineWidth = 2 + item.strength * 8;
+          ctx.stroke();
+        }
+      }
+    }
+    State.queue = State.queue.filter(item => now - item.at < 420);
+
+    if (intensity > 0.24) {
+      const count = Math.floor(3 + intensity * 10);
+      for (let i = 0; i < count; i++) {
+        const x = (Math.random() * c.width);
+        const y = (Math.random() * c.height);
+        const r = 1 + Math.random() * (6 + intensity * 20);
+        ctx.beginPath();
+        ctx.fillStyle = `hsla(${(State.hue + i * 13) % 360}, 100%, 65%, ${0.06 + intensity * 0.18})`;
+        ctx.arc(x, y, r, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+  },
+  animateSphere(intensity, bassHit) {
+    if (!this.mainSphere) return;
+
+    const driftTarget = bassHit > 0 ? 0.18 : 0.02;
+    this.drift.x += (Math.random() - 0.5) * 0.003;
+    this.drift.y += (Math.random() - 0.5) * 0.003;
+    this.mainSphere.rotation.x += this.drift.x * driftTarget;
+    this.mainSphere.rotation.y += this.drift.y * driftTarget;
+
+    const scale = 0.88 + intensity * 1.6 + bassHit * 0.4;
+    this.mainSphere.scale.setScalar(scale);
+
+    this.mainSphere.material.opacity = 0.52 + intensity * 0.25;
+    this.mainSphere.material.emissive = new THREE.Color(`hsl(${(State.hue + State.bgIndex * 4) % 360}, 90%, ${12 + intensity * 20}%)`);
+
+    if (bassHit > 0) {
+      this.mainSphere.position.x += (Math.random() - 0.5) * 0.03;
+      this.mainSphere.position.y += (Math.random() - 0.5) * 0.03;
+    } else {
+      this.mainSphere.position.lerp(new THREE.Vector3(0, 0, 0), 0.03);
+    }
+  },
+  cycleVisualMode(e) {
+    if (e) e.stopPropagation();
+    State.visualMode = (State.visualMode + 1) % 4;
+    document.getElementById('mode-label').innerText = `Mode: ${['liquid','spiky','ripple','warp'][State.visualMode]}`;
+    this.updateAssets(State.trackIndex);
+  },
   loop() {
     requestAnimationFrame(() => this.loop());
+
     const intensity = AudioLayer.getIntensity();
-    this.mainSphere.rotation.y += 0.01;
-    this.mainSphere.scale.setScalar(0.5 + intensity * 2);
+    const mids = AudioLayer.getMids();
+    const highs = AudioLayer.getHighs();
+    const bassHit = AudioLayer.detectBeat();
+
+    if (bassHit > 0) {
+      State.beatEnergy = bassHit;
+      State.history.push({ at: performance.now(), value: bassHit });
+      if (State.history.length > 64) State.history.shift();
+    }
+
+    this.updateGeometry(intensity, mids, highs);
+    this.animateSphere(intensity, bassHit);
+    this.drawWave(intensity);
+    this.drawOverlay(intensity);
+
     this.renderer.render(this.scene, this.camera);
   }
 };
 
-/* LAYER: UI & INPUT */
-const InputLayer = {
-  isStarted: false,
-  handle(e) {
-    if (e.target.closest('#hud') || e.target.closest('#playlist-screen')) return;
-    if (!this.isStarted) {
-      AudioLayer.init();
-      SimulationLayer.init();
-      UILayer.buildPlaylist();
-      this.isStarted = true;
-      AudioLayer.play(playlist[0]);
-    }
-  },
-  skip(n) {
-    const current = AudioLayer.audio.src.split('/').pop();
-    const idx = (playlist.indexOf(current) + n + playlist.length) % playlist.length;
-    AudioLayer.play(playlist[idx]);
-    SimulationLayer.updateVisuals(idx);
-  }
-};
-
 const UILayer = {
-  togglePlaylist() { const s = document.getElementById('playlist-screen'); s.style.display = s.style.display === 'flex' ? 'none' : 'flex'; },
-  changeColor() { document.documentElement.style.setProperty('--hue', Math.random()*360); },
+  togglePlaylist(e) {
+    if (e) e.stopPropagation();
+    const s = document.getElementById('playlist-screen');
+    s.style.display = s.style.display === 'flex' ? 'none' : 'flex';
+  },
+  changeColor(e) {
+    if (e) e.stopPropagation();
+    State.hue = (State.hue + 72) % 360;
+    document.documentElement.style.setProperty('--hue', State.hue);
+  },
   buildPlaylist() {
     const list = document.getElementById('track-list');
+    list.innerHTML = '';
     playlist.forEach((t, i) => {
       const item = document.createElement('div');
       item.className = 'track-item';
       item.innerText = songTitles[t] || t;
-      item.onclick = () => { AudioLayer.play(t); SimulationLayer.updateVisuals(i); this.togglePlaylist(); };
+      item.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        State.trackIndex = i;
+        AudioLayer.loadTrack(i);
+        this.togglePlaylist();
+      });
       list.appendChild(item);
     });
   }
 };
 
-if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js');
+const InputLayer = {
+  handle(e) {
+    if (e.target.closest('#hud') || e.target.closest('#playlist-screen')) return;
+    if (!State.started) {
+      AudioLayer.init();
+      VisualLayer.init();
+      UILayer.buildPlaylist();
+      State.started = true;
+      AudioLayer.loadTrack(0);
+    } else {
+      AudioLayer.ensureRunning();
+    }
+  },
+  skip(n, e) {
+    if (e) e.stopPropagation();
+    if (!State.started) return;
+    State.trackIndex = (State.trackIndex + n + playlist.length) % playlist.length;
+    AudioLayer.loadTrack(State.trackIndex);
+  }
+};
+
+AudioLayer.audio.onended = () => InputLayer.skip(1);
+AudioLayer.audio.addEventListener('error', () => InputLayer.skip(1));
+window.addEventListener('resize', () => VisualLayer.resize());
+
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
 </script>
 </body>
 </html>
