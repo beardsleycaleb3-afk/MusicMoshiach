@@ -31,7 +31,7 @@
     }
 
     body {
-      border: 30px solid var(--frame-color);
+      border: 10px solid var(--frame-color);
     }
 
     #bg-container,
@@ -95,9 +95,9 @@
 
     #odometer-container {
       width: 90%;
-      height: 15px;
+      height: 35px;
       background: #050505;
-      border: 4px solid var(--frame-color);
+      border: 1px solid var(--frame-color);
       overflow: hidden;
     }
 
@@ -116,7 +116,7 @@
 
     #vol-slider {
       width: 55%;
-      height: 20px;
+      height: 10px;
       appearance: none;
       background: #222;
       outline: none;
@@ -124,8 +124,8 @@
 
     #vol-slider::-webkit-slider-thumb {
       appearance: none;
-      width: 40px;
-      height: 20px;
+      width: 10px;
+      height: 10px;
       background: var(--btn-color);
     }
 
@@ -135,13 +135,13 @@
       justify-content: center;
       width: 95%;
       padding: 10px;
-      border: 8px solid var(--frame-color);
+      border: 1px solid var(--frame-color);
     }
 
     .btn {
-      width: 44px;
+      width: 34px;
       height: 44px;
-      border: 14px solid var(--btn-color);
+      border: 1px solid var(--btn-color);
       background: #000;
       color: #fff;
       display: flex;
@@ -171,7 +171,7 @@
     #close-playlist {
       text-align: right;
       color: white;
-      font-size: 32px;
+      font-size: 22px;
       padding: 10px;
       cursor: pointer;
     }
@@ -179,7 +179,7 @@
     .track-item {
       padding: 10px;
       color: var(--frame-color);
-      border-bottom: 14px solid #222;
+      border-bottom: 4px solid #222;
       font-size: 1.5rem;
       touch-action: manipulation;
     }
@@ -427,7 +427,7 @@ const VisualLayer = {
     document.getElementById('bg-container').style.backgroundImage = `url('${bgPath}')`;
     if (this.mainSphere) {
       this.mainSphere.material.map = this.loadTexture(corePath);
-      this.mainSphere.material.opacity = 0.68;
+      this.mainSphere.material.opacity = 0.48;
       this.mainSphere.material.needsUpdate = true;
     }
   },
@@ -690,7 +690,7 @@ const UILayer = {
   },
   changeColor(e) {
     if (e) e.stopPropagation();
-    State.hue = (State.hue + 72) % 360;
+    State.hue = (State.hue + 22) % 360;
     document.documentElement.style.setProperty('--hue', State.hue);
   },
   buildPlaylist() {
