@@ -382,14 +382,7 @@ const VisualLayer = {
   altOpacityPhase: 0,
   ekgCanvas: null,
   ekgCtx: null,
-  miniBurst: [],
-  touchOrbiters: [],
   cameraMode: 0,
-  chargeLevel: 0,
-  chargeMax: 18,
-  chargeDecay: 0.008,
-  explosionCooldown: 0,
-  burstCooldown: 0,
   cameraShake: 0,
   drift: new THREE.Vector3(0, 0, 0),
   init() {
@@ -423,19 +416,18 @@ const VisualLayer = {
     this.skybox = new THREE.Mesh(skyGeo, skyMat);
     this.scene.add(this.skybox);
 
-    const geo = new THREE.IcosahedronGeometry(1.6, 4);
+    const geo = new THREE.SphereGeometry(1.6, 64, 48);
     const mat = new THREE.MeshStandardMaterial({
       transparent: true,
-      opacity: 0.68,
+      opacity: 0.9,
       roughness: 0.22,
-      metalness: 0.42,
+      metalness: 0.28,
       emissive: new THREE.Color(0x111111),
       emissiveIntensity: 0.35,
       side: THREE.DoubleSide,
       depthWrite: false
     });
     this.mainSphere = new THREE.Mesh(geo, mat);
-    this.mainSphere.userData.basePositions = geo.attributes.position.array.slice();
     this.mainSphere.renderOrder = 2;
     this.scene.add(this.mainSphere);
 
@@ -498,45 +490,12 @@ const VisualLayer = {
     this.mainSphere.material.map = this.loadTexture(path);
     this.mainSphere.material.needsUpdate = true;
   },
+  // Per-vertex distortion (the source of the faceted "triangle" look) is gone.
+  // The core sphere now stays geometrically smooth; audio still drives it
+  // through scale/emissive/rotation in animateSphere() below.
   updateGeometry(intensity, mids, highs) {
-    if (!this.mainSphere) return;
-    const positions = this.mainSphere.geometry.attributes.position;
-    const normals = this.mainSphere.geometry.attributes.normal;
-    const base = this.mainSphere.userData.basePositions;
-    const t = performance.now() * 0.0015;
-    const mode = State.visualMode;
-
-    for (let i = 0; i < positions.count; i++) {
-      const ix = i * 3;
-      const bx = base[ix];
-      const by = base[ix + 1];
-      const bz = base[ix + 2];
-      const nx = normals.getX(i);
-      const ny = normals.getY(i);
-      const nz = normals.getZ(i);
-      const radius = Math.sqrt(bx * bx + by * by + bz * bz);
-      const phase = i / positions.count * Math.PI * 4;
-      const wave = Math.sin(t * 2.5 + phase) * 0.09;
-      const burst = Math.cos(radius * 6 - t * 2) * 0.12;
-      const baseSwell = intensity * 0.6 + mids * 0.25 + highs * 0.18;
-      let distortion;
-
-      if (mode === 0) {
-        distortion = baseSwell * 0.9 + wave + Math.sin(radius * 8 - t * 3) * 0.06;
-      } else if (mode === 1) {
-        distortion = baseSwell * 1.1 + Math.abs(Math.cos(phase * 2 + t * 2.8)) * 0.24 + burst * 0.3;
-      } else if (mode === 2) {
-        distortion = Math.sin(radius * 10 - t * 3.2 + phase) * 0.26 + mids * 0.4 + highs * 0.3;
-      } else {
-        distortion = (Math.sin(t * 2 + phase) + Math.cos(radius * 14 - t * 1.6)) * 0.18 + baseSwell * 0.7;
-      }
-
-      const jitter = Math.sin(t * 5 + phase * 2) * 0.01;
-      positions.setXYZ(i, bx + nx * (distortion + jitter), by + ny * (distortion + jitter), bz + nz * (distortion + jitter));
-    }
-
-    positions.needsUpdate = true;
-    this.mainSphere.geometry.computeVertexNormals();
+    // intentionally a no-op now — kept as a hook in case per-mode shading
+    // (not per-vertex geometry distortion) gets added back later.
   },
   drawWave(intensity) {
     if (!this.ekgCtx) return;
@@ -615,154 +574,6 @@ const VisualLayer = {
       ctx.globalAlpha = 1;
     }
   },
-  spawnMiniBurst(strength) {
-    const count = 3 + Math.floor(strength * 18);
-    for (let i = 0; i < count; i++) {
-      const size = 0.05 + Math.random() * 0.08;
-      const particle = new THREE.Mesh(
-        new THREE.SphereGeometry(size, 12, 12),
-        new THREE.MeshStandardMaterial({
-          color: new THREE.Color(`hsl(${(State.hue + Math.random() * 120) % 360}, 90%, 60%)`),
-          transparent: true,
-          opacity: 0.72,
-          emissive: new THREE.Color(`hsl(${(State.hue + Math.random() * 120) % 360}, 90%, 40%)`),
-          emissiveIntensity: 0.8,
-          roughness: 0.18,
-          metalness: 0.45,
-          side: THREE.DoubleSide
-        })
-      );
-      particle.position.copy(this.mainSphere.position);
-      particle.userData = {
-        velocity: new THREE.Vector3((Math.random() - 0.5) * 0.14, (Math.random() - 0.5) * 0.14, (Math.random() - 0.5) * 0.12),
-        life: 1,
-        decay: 0.009 + Math.random() * 0.02
-      };
-      this.scene.add(particle);
-      this.miniBurst.push(particle);
-    }
-  },
-  updateMiniBurst(intensity) {
-    for (let i = this.miniBurst.length - 1; i >= 0; i--) {
-      const particle = this.miniBurst[i];
-      particle.position.addScaledVector(particle.userData.velocity, 1 + intensity * 0.8);
-      particle.rotation.x += 0.04 + Math.random() * 0.05;
-      particle.rotation.y += 0.03 + Math.random() * 0.04;
-      particle.material.opacity = Math.max(0, particle.material.opacity - particle.userData.decay);
-      particle.material.emissiveIntensity = Math.max(0, particle.material.emissiveIntensity - particle.userData.decay * 0.4);
-      particle.scale.multiplyScalar(0.992 + intensity * 0.001);
-      particle.userData.life -= particle.userData.decay;
-      if (particle.userData.life <= 0 || particle.material.opacity <= 0.02) {
-        this.scene.remove(particle);
-        this.miniBurst.splice(i, 1);
-      }
-    }
-  },
-  spawnTouchOrbiters(event) {
-    if (!this.mainSphere || !this.camera) return;
-    const rect = document.body.getBoundingClientRect();
-    const xNorm = (event.clientX / rect.width) * 2 - 1;
-    const yNorm = -((event.clientY / rect.height) * 2 - 1);
-    const baseX = xNorm * 1.8;
-    const baseY = yNorm * 1.2;
-    const hue = (State.hue + Math.floor(event.clientX + event.clientY)) % 360;
-    const opacity = 0.72;
-    const count = 3 + Math.floor(Math.random() * 3);
-
-    for (let i = 0; i < count; i++) {
-      const size = 0.08 + Math.random() * 0.08;
-      const orbitRadius = 0.9 + Math.random() * 1.5;
-      const zOrbit = 0.4 + Math.random() * 1.1;
-      const particle = new THREE.Mesh(
-        new THREE.SphereGeometry(size, 12, 12),
-        new THREE.MeshStandardMaterial({
-          color: new THREE.Color(`hsl(${(hue + i * 30) % 360}, 90%, 62%)`),
-          transparent: true,
-          opacity,
-          emissive: new THREE.Color(`hsl(${(hue + i * 30 + 80) % 360}, 100%, 55%)`),
-          emissiveIntensity: 0.9,
-          roughness: 0.12,
-          metalness: 0.25,
-          blending: THREE.AdditiveBlending,
-          depthWrite: false,
-          side: THREE.DoubleSide
-        })
-      );
-      particle.position.set(baseX, baseY, -0.3);
-      particle.userData = {
-        angle: Math.random() * Math.PI * 2,
-        zAngle: Math.random() * Math.PI * 2,
-        speed: 0.008 + Math.random() * 0.015,
-        radius: orbitRadius,
-        zRadius: zOrbit,
-        phase: Math.random() * Math.PI * 2,
-        hue,
-        life: 1,
-        decay: 0.005 + Math.random() * 0.008,
-        alpha: opacity
-      };
-      this.scene.add(particle);
-      this.touchOrbiters.push(particle);
-    }
-  },
-  updateTouchOrbiters(intensity) {
-    const now = performance.now();
-    const chargeRatio = Math.min(1, this.chargeLevel / this.chargeMax);
-    for (let i = this.touchOrbiters.length - 1; i >= 0; i--) {
-      const orb = this.touchOrbiters[i];
-      const isSucking = chargeRatio > 0.45 || orb.userData.life < 0.35;
-      orb.userData.angle += orb.userData.speed * (1 + intensity * 1.5);
-      orb.userData.zAngle += orb.userData.speed * 0.9 * (1 + intensity * 0.8);
-      const angle = orb.userData.angle;
-      const zAngle = orb.userData.zAngle;
-      const targetX = Math.cos(angle + orb.userData.phase) * orb.userData.radius;
-      const targetY = Math.sin(angle - orb.userData.phase) * orb.userData.radius * 0.7;
-      const targetZ = Math.sin(zAngle + orb.userData.phase) * orb.userData.zRadius - 0.2;
-      orb.position.set(targetX, targetY, targetZ);
-      if (isSucking && this.mainSphere) {
-        orb.position.lerp(this.mainSphere.position, 0.03 + chargeRatio * 0.12 + intensity * 0.02);
-      }
-      orb.rotation.x += 0.015 + intensity * 0.01;
-      orb.rotation.y += 0.02 + intensity * 0.008;
-      const wave = 0.12 + Math.abs(Math.sin(now * 0.0012 + orb.userData.phase)) * 0.12;
-      orb.scale.setScalar(1 + wave * 0.18);
-      const alpha = Math.max(0.1, orb.userData.alpha * (0.8 + Math.sin(now * 0.0015 + orb.userData.phase) * 0.12));
-      orb.material.opacity = alpha;
-      orb.material.emissiveIntensity = 0.7 + Math.abs(Math.sin(now * 0.0016 + orb.userData.phase)) * 0.5;
-      const r = Math.floor(120 + 135 * Math.sin((orb.userData.hue + 0) * Math.PI / 180));
-      const g = Math.floor(80 + 175 * Math.sin((orb.userData.hue + 120) * Math.PI / 180));
-      const b = Math.floor(140 + 100 * Math.cos((orb.userData.hue + 240) * Math.PI / 180));
-      orb.material.color.setRGB(r / 255, g / 255, b / 255);
-      orb.userData.life -= orb.userData.decay + intensity * 0.001;
-      const dist = this.mainSphere ? orb.position.distanceTo(this.mainSphere.position) : Infinity;
-      if (orb.userData.life <= 0 || orb.material.opacity <= 0.08 || dist < 0.28) {
-        this.scene.remove(orb);
-        this.touchOrbiters.splice(i, 1);
-        if (dist < 0.28) {
-          this.spawnMiniBurst(0.8);
-          this.chargeLevel = Math.min(this.chargeMax, this.chargeLevel + 0.8);
-        }
-      }
-    }
-    this.chargeLevel = Math.max(0, this.chargeLevel - this.chargeDecay - intensity * 0.005);
-    if (this.chargeLevel >= this.chargeMax && performance.now() - this.explosionCooldown > 240) {
-      this.triggerChargeExplosion();
-    }
-  },
-  triggerChargeExplosion() {
-    const blastPower = Math.min(1, this.chargeLevel / this.chargeMax);
-    const burstCount = 6 + Math.floor(blastPower * 16);
-    for (let i = 0; i < burstCount; i++) {
-      this.spawnMiniBurst(0.9 + blastPower * 0.6);
-    }
-    this.cameraShake = Math.min(1.5, this.cameraShake + 0.6 + blastPower * 0.42);
-    this.chargeLevel = 0;
-    this.explosionCooldown = performance.now();
-    while (this.touchOrbiters.length) {
-      const orb = this.touchOrbiters.pop();
-      this.scene.remove(orb);
-    }
-  },
   updateCameraView(intensity) {
     if (!this.camera) return;
     const t = performance.now() * 0.0006;
@@ -785,11 +596,6 @@ const VisualLayer = {
   },
   animateSphere(intensity, bassHit) {
     if (!this.mainSphere) return;
-
-    if (bassHit > 0 && performance.now() - this.burstCooldown > 120) {
-      this.spawnMiniBurst(bassHit);
-      this.burstCooldown = performance.now();
-    }
 
     const driftTarget = bassHit > 0 ? 0.25 : 0.04;
     this.drift.x += (Math.random() - 0.5) * 0.004;
@@ -838,10 +644,7 @@ const VisualLayer = {
 
     AssetCycler.maybeAutoCycle();
 
-    this.updateGeometry(intensity, mids, highs);
     this.animateSphere(intensity, bassHit);
-    this.updateMiniBurst(intensity);
-    this.updateTouchOrbiters(intensity);
     this.updateCameraView(intensity);
     this.drawWave(intensity);
     this.drawOverlay(intensity);
@@ -893,7 +696,6 @@ const InputLayer = {
       // every tap after the first cycles bg -> core -> back around the deques
       AssetCycler.cycle();
     }
-    VisualLayer.spawnTouchOrbiters(e);
   },
   skip(n, e) {
     if (e) e.stopPropagation();
