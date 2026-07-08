@@ -360,8 +360,9 @@ const VisualLayer = {
 
     // Skybox: large inverted sphere, bg image on the inside face
     const skyGeo = new THREE.SphereGeometry(40, 48, 32);
-    const skyMat = new THREE.MeshBasicMaterial({ side: THREE.BackSide, transparent: true, opacity: 0.95 });
+    const skyMat = new THREE.MeshBasicMaterial({ side: THREE.BackSide, transparent: true, opacity: 0.95, depthWrite: false, depthTest: false });
     this.skybox = new THREE.Mesh(skyGeo, skyMat);
+    this.skybox.renderOrder = -1;
     this.skybox.userData = { fadeAlpha: 1, baseOpacity: 0.95 };
     this.scene.add(this.skybox);
 
@@ -382,6 +383,7 @@ const VisualLayer = {
         depthWrite: false
       });
       const mesh = new THREE.Mesh(geo, mat);
+      mesh.renderOrder = LAYER_COUNT - i; // front layer (i=0) draws last, on top of back layers
       mesh.position.set((Math.random() - 0.5) * 1.2, (i - LAYER_COUNT / 2) * 0.4, -depthT * 5);
       mesh.userData = {
         depthT,
