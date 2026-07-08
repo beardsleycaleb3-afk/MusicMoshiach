@@ -1,4 +1,4 @@
-const CACHE_NAME = 'MusicMoshiach-v34';
+const CACHE_NAME = 'MusicMoshiach-v35';
 
 const assetMap = {
   playlist: [
