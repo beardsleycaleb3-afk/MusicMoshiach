@@ -2,8 +2,16 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="theme-color" content="#ff7a00">
+  <meta name="color-scheme" content="dark">
   <title>MusicMoshiach</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png">
+  <link rel="apple-touch-icon" href="icons/icon-192.png">
   <script src="https://cdn.babylonjs.com/babylon.js"></script>
   <style>
     :root {
@@ -11,40 +19,150 @@
       --frame-color: hsl(var(--hue), 100%, 50%);
       --btn-color: hsl(calc(var(--hue) + 180), 100%, 50%);
     }
-    * { box-sizing: border-box; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; }
-    html, body { margin: 0; width: 100%; height: 100%; overflow: hidden; background: #000; font-family: sans-serif; touch-action: none; }
-    body { border: 10px solid var(--frame-color); }
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      -webkit-touch-callout: none;
+    }
+    html, body {
+      margin: 0;
+      width: 100dvw;
+      height: 100dvh;
+      overflow: hidden;
+      background: #000;
+      font-family: system-ui, -apple-system, sans-serif;
+      touch-action: none;
+    }
+    body {
+      border: 6px solid var(--frame-color);
+      width: 100dvw;
+      height: 100dvh;
+      position: relative;
+    }
     #renderCanvas {
-      position: fixed; top: 10px; left: 10px;
-      width: calc(100vw - 20px); height: calc(100vh - 195px);
-      outline: none; touch-action: none; z-index: 1;
+      position: absolute;
+      top: 6px;
+      left: 6px;
+      width: calc(100dvw - 12px);
+      height: calc(100dvh - 158px);
+      outline: none;
+      touch-action: none;
+      z-index: 1;
+      background: #000;
+      display: block;
     }
     #hud {
-      position: fixed; left: 0; bottom: 0; width: 100%; height: 175px;
-      z-index: 100; background: #000; display: flex; flex-direction: column;
-      align-items: center; justify-content: space-evenly; padding: 5px;
+      position: absolute;
+      left: 0;
+      bottom: 0;
+      width: 100%;
+      height: 152px;
+      z-index: 100;
+      background: #000;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-evenly;
+      padding: 4px 6px 8px;
     }
-    #track-info { color: var(--frame-color); font-size: 1.5rem; font-weight: bold; text-align: center; }
-    #mode-label { color: var(--frame-color); font-size: 1rem; text-align: center; }
-    #vol-slider { width: 55%; height: 10px; appearance: none; background: #222; outline: none; }
-    #vol-slider::-webkit-slider-thumb { appearance: none; width: 10px; height: 10px; background: var(--btn-color); }
-    .deck { display: flex; gap: 8px; justify-content: center; width: 95%; padding: 10px; border: 1px solid var(--frame-color); }
+    #track-info {
+      color: var(--frame-color);
+      font-size: 1.05rem;
+      font-weight: 700;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      width: 94%;
+    }
+    #mode-label {
+      color: var(--frame-color);
+      font-size: 0.7rem;
+      text-align: center;
+    }
+    #vol-slider {
+      width: 72%;
+      height: 12px;
+      appearance: none;
+      background: #222;
+      outline: none;
+      border-radius: 6px;
+    }
+    #vol-slider::-webkit-slider-thumb {
+      appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--btn-color);
+    }
+    .deck {
+      display: flex;
+      gap: 6px;
+      justify-content: center;
+      width: 96%;
+      padding: 6px;
+      border: 1px solid var(--frame-color);
+    }
     .btn {
-      width: 34px; height: 44px; border: 1px solid var(--btn-color); background: #000; color: #fff;
-      display: flex; align-items: center; justify-content: center; cursor: pointer; touch-action: manipulation;
+      width: 42px;
+      height: 46px;
+      border: 1px solid var(--btn-color);
+      background: #000;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      touch-action: manipulation;
     }
-    .btn span { font-size: 22px; pointer-events: none; }
+    .btn span { font-size: 20px; pointer-events: none; }
     #playlist-screen {
-      position: fixed; inset: 0; background: #131; z-index: 200; display: none;
-      flex-direction: column; padding: 10px; overflow-y: auto; touch-action: pan-y;
+      position: absolute;
+      inset: 0;
+      background: #0d1a0d;
+      z-index: 200;
+      display: none;
+      flex-direction: column;
+      padding: 8px;
+      overflow-y: auto;
+      touch-action: pan-y;
     }
-    #close-playlist { text-align: right; color: white; font-size: 22px; padding: 10px; cursor: pointer; }
-    .track-item { padding: 10px; color: var(--frame-color); border-bottom: 4px solid #222; font-size: 1.5rem; touch-action: manipulation; }
+    #close-playlist {
+      text-align: right;
+      color: #fff;
+      font-size: 24px;
+      padding: 8px 12px;
+      touch-action: manipulation;
+    }
+    .track-item {
+      padding: 12px 8px;
+      color: var(--frame-color);
+      border-bottom: 3px solid #222;
+      font-size: 1.1rem;
+      touch-action: manipulation;
+    }
+    #install-banner {
+      display: none;
+      position: absolute;
+      top: 14px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 300;
+      background: #111;
+      border: 2px solid var(--frame-color);
+      color: var(--frame-color);
+      padding: 10px 16px;
+      font-size: 0.85rem;
+      text-align: center;
+      touch-action: manipulation;
+    }
   </style>
 </head>
 <body>
 
   <canvas id="renderCanvas"></canvas>
+  <div id="install-banner">Tap to install MusicMoshiach</div>
 
   <div id="playlist-screen">
     <div id="close-playlist">✕</div>
@@ -53,14 +171,14 @@
 
   <div id="hud">
     <div id="track-info">MusicMoshiach</div>
-    <div id="mode-label">BPM: -- | Layers: 6</div>
+    <div id="mode-label">BPM: -- | Gravity: still | L6</div>
     <input type="range" id="vol-slider" min="0" max="1" step="0.01" value="1">
     <div class="deck">
-      <div class="btn" id="btn-play"><span>⏯️</span></div>
-      <div class="btn" id="btn-skip"><span>⏭️</span></div>
-      <div class="btn" id="btn-color"><span>👻</span></div>
-      <div class="btn" id="btn-gravity"><span>🎛️</span></div>
-      <div class="btn" id="btn-playlist"><span>🌶️</span></div>
+      <div class="btn" id="btn-play" role="button"><span>⏯️</span></div>
+      <div class="btn" id="btn-skip" role="button"><span>⏭️</span></div>
+      <div class="btn" id="btn-color" role="button"><span>👻</span></div>
+      <div class="btn" id="btn-gravity" role="button"><span>🎛️</span></div>
+      <div class="btn" id="btn-playlist" role="button"><span>🌶️</span></div>
     </div>
   </div>
 
@@ -71,7 +189,8 @@ const State = {
   hue: 30,
   currentBgFile: null,
   lastCycleAt: 0,
-  estimatedBpm: 0
+  estimatedBpm: 0,
+  deferredPrompt: null
 };
 
 const playlist = ["9.mp3","10.mp3","11.mp3","12.mp3","13.mp3","14.mp3","15.mp3","16.mp3","17.mp3","18.mp3","19.mp3","20.mp3","21.mp3","22.mp3","23.mp3","24.mp3","25.mp3","26.mp3","27.mp3","28.mp3","29.mp3","30.mp3","31.mp3","32.mp3","33.mp3","34.mp3","35.mp3","38.mp3","39.mp3","40.mp3","41.mp3","42.mp3","43.mp3","44.mp3","45.mp3","46.mp3","47.mp3","48.mp3","49.mp3","50.mp3","51.mp3","52.mp3","53.mp3","55.mp3","56.mp3","57.mp3","58.mp3","59.mp3","60.mp3","1.mp3","2.mp3","3.mp3","4.mp3","5.mp3","6.mp3","7.mp3","8.mp3"];
@@ -80,7 +199,11 @@ const songTitles = {
   "9.mp3":"99 to 1","10.mp3":"retribu x protocol","11.mp3":"Xenon Rain","12.mp3":"Sultan of Vishnu","13.mp3":"Stray Signal","14.mp3":"Planet Commandments","15.mp3":"The Reckoning","16.mp3":"Time Leaks Silver","17.mp3":"Fear Forced Fate","18.mp3":"King of Glyphs","19.mp3":"dawns king","20.mp3":"red sunday","21.mp3":"Daylight made me","22.mp3":"death frequencies","23.mp3":"frequencies death","24.mp3":"death frequency 2","25.mp3":"false star","26.mp3":"Fifteen Trillion","27.mp3":"fractured shadow","28.mp3":"FOD","29.mp3":"FOD 4","30.mp3":"Gods King of Kings","31.mp3":"Hidden Sultan of Vishnu","32.mp3":"hiss","33.mp3":"Hook Will NAIL You","34.mp3":"HOOKED ON THE HISS","35.mp3":"Ignition Arch. X NanoFile","38.mp3":"limit breaks","39.mp3":"MOON Monster Melody X Comment","40.mp3":"New one","41.mp3":"no blanking","42.mp3":"noise swells","43.mp3":"phantom X Hidden","44.mp3":"phoenix dark","45.mp3":"planet command","46.mp3":"Roll over Once","47.mp3":"rust fold","48.mp3":"ss ii py f","49.mp3":"ten by seven","50.mp3":"the dark","51.mp3":"the hook","52.mp3":"THE TRUTH","53.mp3":"The prophecy","55.mp3":"tuned for death","56.mp3":"unsteady echo","57.mp3":"ur decension","58.mp3":"When the curtain moves","59.mp3":"wildcard subnet","60.mp3":"yo my people","1.mp3":"Zero Son","2.mp3":"Aftertone 2","3.mp3":"Aint in the darkness","4.mp3":"Alpha-betz","5.mp3":"laphazeta x","6.mp3":"Birdseye","7.mp3":"Broken limits","8.mp3":"what you are"
 };
 
-const coreFiles  = ['a.jpeg','aa.jpeg','aaa.jpeg','b.jpeg','bb.jpeg','bbb.jpeg','c.jpeg','cc.jpeg','ccc.jpeg','d.jpeg','dd.jpeg','ddd.jpeg','e.jpeg','ee.jpeg','eee.jpeg','f.jpeg','ff.jpeg','fff.jpeg','g.jpeg','gg.jpeg','ggg.jpeg','h.jpeg','hh.jpeg','i.jpeg','ii.jpeg','iii.jpeg','j.jpeg','jj.jpeg','jjj.jpeg','k.jpeg','kk.jpeg','kkk.jpeg','l.jpeg','ll.jpeg','lll.jpeg','m.jpeg','mm.jpeg','mmm.jpeg','n.jpeg','nn.jpeg','o.jpeg','oo.jpeg','p.jpeg','pp.jpeg','q.jpeg','qq.jpeg','r.jpeg','rr.jpeg','s.jpeg','ss.jpeg','t.jpeg','tt.jpeg','u.jpeg','uu.jpeg','v.jpeg','vv.jpeg','w.jpeg','x.jpeg','xx.jpeg','y.jpeg','yy.jpeg','z.jpeg','zz.jpeg'];
+/* All visual images live in these two pools.
+   BGs start as skybox. On every cycle the current BG moves onto shape[0],
+   shapes cascade forward, and the outgoing last shape can re-enter the BG pool.
+   Cores seed the initial shapes then also feed the cascade. */
+const coreFiles = ['a.jpeg','aa.jpeg','aaa.jpeg','b.jpeg','bb.jpeg','bbb.jpeg','c.jpeg','cc.jpeg','ccc.jpeg','d.jpeg','dd.jpeg','ddd.jpeg','e.jpeg','ee.jpeg','eee.jpeg','f.jpeg','ff.jpeg','fff.jpeg','g.jpeg','gg.jpeg','ggg.jpeg','h.jpeg','hh.jpeg','i.jpeg','ii.jpeg','iii.jpeg','j.jpeg','jj.jpeg','jjj.jpeg','k.jpeg','kk.jpeg','kkk.jpeg','l.jpeg','ll.jpeg','lll.jpeg','m.jpeg','mm.jpeg','mmm.jpeg','n.jpeg','nn.jpeg','o.jpeg','oo.jpeg','p.jpeg','pp.jpeg','q.jpeg','qq.jpeg','r.jpeg','rr.jpeg','s.jpeg','ss.jpeg','t.jpeg','tt.jpeg','u.jpeg','uu.jpeg','v.jpeg','vv.jpeg','w.jpeg','x.jpeg','xx.jpeg','y.jpeg','yy.jpeg','z.jpeg','zz.jpeg'];
 
 const bgs = ['1.jpg','2.jpg','3.jpg','4.jpg','5.jpg','6.jpg','7.jpg','8.jpg','9.jpg','10.jpg','11.jpg','12.jpg','13.jpg','14.jpg','15.jpg','16.jpg','17.jpg','18.jpg','19.jpg','20.jpg','21.jpg','22.jpg','23.jpg','24.jpg','25.jpg','26.jpg','27.jpg','28.jpg','29.jpg','30.jpg','31.jpg','32.jpg','33.jpg','34.jpg','35.jpg','36.jpg','37.jpg','38.jpg','40.jpg','41.jpg','42.jpg','43.jpg','44.jpg','45.jpg','46.jpg','47.jpg','48.jpg','49.jpg','50.jpg','51.jpg','52.jpg','54.jpg','55.jpg','56.jpg','57.jpg','59.jpg','60.jpg','61.jpg','62.jpg','63.jpg','64.jpg','65.jpg'];
 
@@ -88,19 +211,19 @@ function makeDeque(seedList) {
   const items = seedList.slice();
   return {
     items,
-    enqueue(v) { this.items.push(v); },
+    enqueue(v) { if (v) this.items.push(v); },
     dequeue() { return this.items.length ? this.items.shift() : null; },
-    peekAt(n) { return this.items.length ? this.items[n % this.items.length] : null; }
+    peekAt(n) { return this.items.length ? this.items[n % this.items.length] : null; },
+    size() { return this.items.length; }
   };
 }
-
 const BgDeque = makeDeque(bgs);
 const CoreDeque = makeDeque(coreFiles);
 
 const LAYER_COUNT = 6;
-const CYCLE_MS = 10000;
-const BEAT_CYCLE_COOLDOWN_MS = 2400;
-const PRELOAD_LOOKAHEAD = 3;
+const CYCLE_MS = 9000;
+const BEAT_CYCLE_COOLDOWN_MS = 2200;
+const PRELOAD_LOOKAHEAD = 4;
 const GRAVITY_MODES = ['fall', 'rise', 'still'];
 
 /* ───────────── Audio + BPM ───────────── */
@@ -112,66 +235,57 @@ const AudioLayer = {
   source: null,
   lastBeatAt: 0,
   beatIntervals: [],
-  estimatedBpm: 0,
 
   init() {
     if (this.ctx) return;
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     this.analyser = this.ctx.createAnalyser();
     this.analyser.fftSize = 256;
-    this.analyser.smoothingTimeConstant = 0.75;
+    this.analyser.smoothingTimeConstant = 0.72;
     this.source = this.ctx.createMediaElementSource(this.audio);
     this.source.connect(this.analyser);
     this.analyser.connect(this.ctx.destination);
     this.audio.crossOrigin = 'anonymous';
     this.audio.volume = 1;
   },
-
   ensureRunning() {
     if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume();
   },
-
   getBins() {
     if (!this.analyser) return this.data;
     this.analyser.getByteFrequencyData(this.data);
     return this.data;
   },
-
   getIntensity() {
     const bins = this.getBins();
     let sum = 0;
     for (let i = 0; i < 32; i++) sum += bins[i];
     return sum / (32 * 255);
   },
-
   getBass() {
     const bins = this.getBins();
     let sum = 0;
     for (let i = 0; i < 8; i++) sum += bins[i];
     return sum / (8 * 255);
   },
-
   detectBeat() {
     const bass = this.getBass();
     const now = performance.now();
-    const hit = bass > 0.48 && (now - this.lastBeatAt) > 160;
+    const hit = bass > 0.47 && (now - this.lastBeatAt) > 150;
     if (hit) {
       if (this.lastBeatAt > 0) {
         const interval = now - this.lastBeatAt;
         this.beatIntervals.push(interval);
-        if (this.beatIntervals.length > 12) this.beatIntervals.shift();
-        // median-ish BPM
+        if (this.beatIntervals.length > 14) this.beatIntervals.shift();
         const sorted = this.beatIntervals.slice().sort((a, b) => a - b);
         const mid = sorted[Math.floor(sorted.length / 2)];
-        this.estimatedBpm = Math.round(60000 / mid);
-        State.estimatedBpm = this.estimatedBpm;
+        State.estimatedBpm = Math.round(60000 / mid);
       }
       this.lastBeatAt = now;
       return bass;
     }
     return 0;
   },
-
   loadTrack(index) {
     State.trackIndex = index;
     this.audio.src = `assets/audio/${playlist[index]}`;
@@ -184,73 +298,95 @@ const AudioLayer = {
       State.lastCycleAt = performance.now();
     }
   },
-
   toggle() {
     this.audio.paused ? this.audio.play().catch(() => {}) : this.audio.pause();
     this.ensureRunning();
   },
-
   setVolume(v) { this.audio.volume = Number(v); }
 };
 
-/* ───────────── Asset cycling ───────────── */
+/* ───────────── THE LINEUP CASCADE ─────────────
+   Rule:
+   1. Pull next BG from BgDeque → becomes new skybox.
+   2. The *previous* skybox image moves onto shape[0].
+   3. Every shape passes its texture one step forward.
+   4. The image that falls off the last shape is enqueued back into BgDeque
+      so the whole set of assets keeps circulating forever.
+   5. Cores only seed the first fill; after that the cascade is pure assets.
+*/
 const AssetChain = {
-  layerFiles: [],
+  layerFiles: new Array(LAYER_COUNT).fill(null), // current image on each shape
   tickCount: 0,
 
   init() {
+    // Seed shapes with cores first so there is something on them immediately
     for (let i = 0; i < LAYER_COUNT; i++) {
-      const seeded = CoreDeque.dequeue();
-      this.layerFiles.push(seeded);
-      if (seeded) CoreDeque.enqueue(seeded);
+      const seed = CoreDeque.dequeue();
+      this.layerFiles[i] = seed;
+      if (seed) CoreDeque.enqueue(seed); // keep cores available later if needed
     }
+    // First skybox
     State.currentBgFile = BgDeque.dequeue();
     if (State.currentBgFile) BgDeque.enqueue(State.currentBgFile);
+
     VisualLayer.applySkybox(State.currentBgFile);
-    for (let i = 0; i < LAYER_COUNT; i++) VisualLayer.applyLayerTexture(i, this.layerFiles[i]);
+    for (let i = 0; i < LAYER_COUNT; i++) {
+      VisualLayer.applyLayerTexture(i, this.layerFiles[i]);
+    }
     this.preload();
   },
 
   cycle(force = false) {
-    const newBg = BgDeque.dequeue();
-    if (!newBg) return;
-    BgDeque.enqueue(newBg);
+    // 1. Next background enters
+    const nextBg = BgDeque.dequeue();
+    if (!nextBg) return;
 
-    const enteringCore = State.currentBgFile;
-    State.currentBgFile = newBg;
-    VisualLayer.applySkybox(newBg);
+    // 2. Current background becomes the new front shape texture
+    const leavingBg = State.currentBgFile;
+
+    // 3. Cascade shapes: last shape's image falls off → back into BG pool
+    const fallingOff = this.layerFiles[LAYER_COUNT - 1];
+    if (fallingOff) BgDeque.enqueue(fallingOff);
+
+    // Shift every shape one step toward the end
+    for (let i = LAYER_COUNT - 1; i > 0; i--) {
+      this.layerFiles[i] = this.layerFiles[i - 1];
+    }
+    // Front shape receives the image that just left the skybox
+    this.layerFiles[0] = leavingBg;
+
+    // 4. Install new skybox
+    State.currentBgFile = nextBg;
+    BgDeque.enqueue(nextBg); // keep the pool rotating
+
+    VisualLayer.applySkybox(nextBg);
+    for (let i = 0; i < LAYER_COUNT; i++) {
+      VisualLayer.applyLayerTexture(i, this.layerFiles[i]);
+    }
 
     this.tickCount++;
-
-    for (let i = 0; i < LAYER_COUNT; i++) {
-      // different strides so layers change at different rates
-      const stride = [1, 1, 2, 2, 3, 4][i] || 1;
-      if (!force && this.tickCount % stride !== 0) continue;
-
-      const incoming = i === 0 ? enteringCore : this.layerFiles[i - 1];
-      if (!incoming) continue;
-
-      if (i === LAYER_COUNT - 1 && this.layerFiles[i]) {
-        // recycle last core back into bg pool occasionally
-        // (keeps visual variety)
-      }
-      this.layerFiles[i] = incoming;
-      VisualLayer.applyLayerTexture(i, incoming);
-    }
     this.preload();
   },
 
   preload() {
     for (let n = 0; n < PRELOAD_LOOKAHEAD; n++) {
       const bgUp = BgDeque.peekAt(n);
-      const coreUp = CoreDeque.peekAt(n);
       if (bgUp) VisualLayer.preloadTexture(`assets/audio/bg/${bgUp}`);
+      // also preload any core that might still be referenced
+      const coreUp = CoreDeque.peekAt(n);
       if (coreUp) VisualLayer.preloadTexture(`assets/audio/core/${coreUp}`);
     }
+    // preload current shape files that are still in the cascade
+    this.layerFiles.forEach((f) => {
+      if (!f) return;
+      // try both folders – the cascade mixes former BGs and cores
+      VisualLayer.preloadTexture(`assets/audio/bg/${f}`);
+      VisualLayer.preloadTexture(`assets/audio/core/${f}`);
+    });
   }
 };
 
-/* ───────────── Babylon Visual Layer ───────────── */
+/* ───────────── Babylon Visual ───────────── */
 const VisualLayer = {
   engine: null,
   scene: null,
@@ -265,61 +401,72 @@ const VisualLayer = {
 
   init() {
     const canvas = document.getElementById('renderCanvas');
-    this.engine = new BABYLON.Engine(canvas, true, { preserveDrawingBuffer: true, stencil: true });
+    this.engine = new BABYLON.Engine(canvas, true, {
+      preserveDrawingBuffer: true,
+      stencil: true,
+      adaptToDeviceRatio: true
+    });
+    const dpr = Math.min(window.devicePixelRatio || 1, 2.6);
+    this.engine.setHardwareScalingLevel(1 / dpr);
+
     this.scene = new BABYLON.Scene(this.engine);
     this.scene.clearColor = new BABYLON.Color4(0, 0, 0, 1);
 
-    // Camera – touch controlled
-    this.camera = new BABYLON.ArcRotateCamera('cam', -Math.PI / 2, Math.PI / 2.4, 18, BABYLON.Vector3.Zero(), this.scene);
-    this.camera.lowerRadiusLimit = 8;
-    this.camera.upperRadiusLimit = 40;
-    this.camera.wheelPrecision = 40;
-    this.camera.panningSensibility = 0; // pure rotate + zoom via touch
+    this.camera = new BABYLON.ArcRotateCamera(
+      'cam', -Math.PI / 2, Math.PI / 2.3, 15, BABYLON.Vector3.Zero(), this.scene
+    );
+    this.camera.lowerRadiusLimit = 6;
+    this.camera.upperRadiusLimit = 28;
+    this.camera.panningSensibility = 0;
+    this.camera.attachControl(canvas, false);
 
-    // Soft light
     const hemi = new BABYLON.HemisphericLight('hemi', new BABYLON.Vector3(0, 1, 0), this.scene);
-    hemi.intensity = 0.65;
+    hemi.intensity = 0.55;
     const point = new BABYLON.PointLight('pt', new BABYLON.Vector3(0, 4, 6), this.scene);
-    point.intensity = 0.55;
+    point.intensity = 0.45;
 
-    // Background sphere (inverted)
-    this.skyMesh = BABYLON.MeshBuilder.CreateSphere('sky', { diameter: 120, segments: 32 }, this.scene);
+    // Full-sphere skybox – image covers the entire environment
+    this.skyMesh = BABYLON.MeshBuilder.CreateSphere('sky', {
+      diameter: 90,
+      segments: 32
+    }, this.scene);
     this.skyMat = new BABYLON.StandardMaterial('skyMat', this.scene);
     this.skyMat.backFaceCulling = false;
     this.skyMat.disableLighting = true;
-    this.skyMat.emissiveColor = new BABYLON.Color3(0.7, 0.7, 0.7);
+    this.skyMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
     this.skyMesh.material = this.skyMat;
     this.skyMesh.infiniteDistance = true;
 
-    // Multiple shaped meshes that receive core textures
-    const shapes = [
-      () => BABYLON.MeshBuilder.CreateSphere('s0', { diameter: 3.2, segments: 24 }, this.scene),
-      () => BABYLON.MeshBuilder.CreateBox('s1', { size: 2.6 }, this.scene),
-      () => BABYLON.MeshBuilder.CreateTorus('s2', { diameter: 3.4, thickness: 0.7, tessellation: 32 }, this.scene),
-      () => BABYLON.MeshBuilder.CreateCylinder('s3', { height: 3.5, diameter: 2.2, tessellation: 24 }, this.scene),
-      () => BABYLON.MeshBuilder.CreatePlane('s4', { size: 4.2, sideOrientation: BABYLON.Mesh.DOUBLESIDE }, this.scene),
-      () => BABYLON.MeshBuilder.CreateIcoSphere('s5', { radius: 2.1, subdivisions: 2 }, this.scene)
+    // Six distinct shapes – every face fully wrapped by the texture
+    const builders = [
+      () => BABYLON.MeshBuilder.CreateSphere('m0', { diameter: 2.9, segments: 24 }, this.scene),
+      () => BABYLON.MeshBuilder.CreateBox('m1', { size: 2.4 }, this.scene),
+      () => BABYLON.MeshBuilder.CreateTorus('m2', { diameter: 3.1, thickness: 0.6, tessellation: 32 }, this.scene),
+      () => BABYLON.MeshBuilder.CreateCylinder('m3', { height: 3.1, diameter: 2.0, tessellation: 24 }, this.scene),
+      () => BABYLON.MeshBuilder.CreatePlane('m4', { size: 3.8, sideOrientation: BABYLON.Mesh.DOUBLESIDE }, this.scene),
+      () => BABYLON.MeshBuilder.CreateIcoSphere('m5', { radius: 1.85, subdivisions: 2 }, this.scene)
     ];
 
     for (let i = 0; i < LAYER_COUNT; i++) {
-      const mesh = shapes[i]();
+      const mesh = builders[i]();
       const mat = new BABYLON.StandardMaterial(`mat${i}`, this.scene);
       mat.diffuseColor = new BABYLON.Color3(1, 1, 1);
-      mat.emissiveColor = new BABYLON.Color3(0.15, 0.15, 0.15);
-      mat.specularColor = new BABYLON.Color3(0.2, 0.2, 0.2);
+      mat.emissiveColor = new BABYLON.Color3(0.25, 0.25, 0.25);
+      mat.specularColor = new BABYLON.Color3(0.1, 0.1, 0.1);
+      // make sure the texture fully covers the mesh
+      mat.useAlphaFromDiffuseTexture = false;
       mesh.material = mat;
 
-      // spread them in space
       const angle = (i / LAYER_COUNT) * Math.PI * 2;
       mesh.position = new BABYLON.Vector3(
-        Math.cos(angle) * (4 + i * 0.6),
-        (Math.sin(angle * 1.3) * 2.5) - 1,
-        Math.sin(angle) * (4 + i * 0.6)
+        Math.cos(angle) * (3.5 + i * 0.4),
+        (Math.sin(angle * 1.35) * 1.9) - 0.6,
+        Math.sin(angle) * (3.5 + i * 0.4)
       );
       mesh.rotation = new BABYLON.Vector3(
         Math.random() * Math.PI,
         Math.random() * Math.PI,
-        Math.random() * Math.PI
+        Math.random() * 0.5
       );
 
       this.meshes.push({
@@ -328,43 +475,78 @@ const VisualLayer = {
         basePos: mesh.position.clone(),
         phase: Math.random() * Math.PI * 2,
         rotSpeed: new BABYLON.Vector3(
-          (Math.random() - 0.5) * 0.015,
+          (Math.random() - 0.5) * 0.014,
           (Math.random() - 0.5) * 0.02,
           (Math.random() - 0.5) * 0.01
-        ),
-        file: null
+        )
       });
     }
 
-    // Render loop
     this.engine.runRenderLoop(() => this.tick());
     window.addEventListener('resize', () => this.engine.resize());
   },
 
+  /* Resolve an image filename to a real URL.
+     Cascade mixes former BGs and cores, so try both folders. */
+  resolveUrl(file) {
+    if (!file) return null;
+    if (file.endsWith('.jpg') || file.endsWith('.jpeg') && /^\d/.test(file)) {
+      // numeric names are almost always BGs
+      return `assets/audio/bg/${file}`;
+    }
+    // letter-based names are cores; also try bg as fallback
+    return `assets/audio/core/${file}`;
+  },
+
   preloadTexture(url) {
-    if (this.textureCache.has(url)) return this.textureCache.get(url);
+    if (!url || this.textureCache.has(url)) return this.textureCache.get(url);
     const tex = new BABYLON.Texture(url, this.scene, false, true, BABYLON.Texture.TRILINEAR_SAMPLINGMODE);
+    tex.uScale = 1;
+    tex.vScale = 1;
+    tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
     this.textureCache.set(url, tex);
     return tex;
   },
 
-  applySkybox(bgFile) {
-    if (!bgFile || !this.skyMat) return;
-    const url = `assets/audio/bg/${bgFile}`;
+  applySkybox(file) {
+    if (!file || !this.skyMat) return;
+    // BGs live in bg/
+    const url = `assets/audio/bg/${file}`;
     const tex = this.preloadTexture(url);
+    // cover the whole sphere
+    tex.uScale = 1;
+    tex.vScale = 1;
     this.skyMat.emissiveTexture = tex;
     this.skyMat.diffuseTexture = tex;
+    this.skyMat.emissiveColor = new BABYLON.Color3(1, 1, 1);
   },
 
-  applyLayerTexture(index, coreFile) {
-    if (!coreFile || !this.meshes[index]) return;
-    const url = `assets/audio/core/${coreFile}`;
-    const tex = this.preloadTexture(url);
+  applyLayerTexture(index, file) {
+    if (!file || !this.meshes[index]) return;
     const entry = this.meshes[index];
-    entry.file = coreFile;
+
+    // Try core first, then bg (cascade can put either on a shape)
+    let url = `assets/audio/core/${file}`;
+    let tex = this.textureCache.get(url);
+    if (!tex) {
+      // if it looks like a bg filename, prefer bg folder
+      if (/^\d/.test(file) || file.endsWith('.jpg')) {
+        url = `assets/audio/bg/${file}`;
+      }
+      tex = this.preloadTexture(url);
+    }
+
+    // Force full coverage on the mesh
+    tex.uScale = 1;
+    tex.vScale = 1;
+    tex.wrapU = BABYLON.Texture.CLAMP_ADDRESSMODE;
+    tex.wrapV = BABYLON.Texture.CLAMP_ADDRESSMODE;
+
     entry.mat.diffuseTexture = tex;
     entry.mat.emissiveTexture = tex;
-    entry.mat.emissiveColor = new BABYLON.Color3(0.35, 0.35, 0.35);
+    entry.mat.emissiveColor = new BABYLON.Color3(0.4, 0.4, 0.4);
+    entry.mat.diffuseColor = new BABYLON.Color3(1, 1, 1);
   },
 
   cycleGravityMode() {
@@ -375,14 +557,15 @@ const VisualLayer = {
   updateModeLabel() {
     const bpmStr = State.estimatedBpm > 40 ? State.estimatedBpm : '--';
     document.getElementById('mode-label').textContent =
-      `BPM: ${bpmStr} | Gravity: ${GRAVITY_MODES[this.gravityMode]} | Layers: ${LAYER_COUNT}`;
+      `BPM: ${bpmStr} | Gravity: ${GRAVITY_MODES[this.gravityMode]} | L${LAYER_COUNT}`;
   },
 
   registerTouch(clientX, clientY) {
-    const rect = this.engine.getRenderingCanvas().getBoundingClientRect();
+    const canvas = this.engine.getRenderingCanvas();
+    const rect = canvas.getBoundingClientRect();
     const xNorm = ((clientX - rect.left) / rect.width) * 2 - 1;
     const yNorm = -(((clientY - rect.top) / rect.height) * 2 - 1);
-    this.touchTarget = { x: xNorm * 0.9, y: yNorm * 0.6 };
+    this.touchTarget = { x: xNorm * 0.95, y: yNorm * 0.7 };
   },
 
   tick() {
@@ -394,7 +577,7 @@ const VisualLayer = {
     const now = performance.now();
     const t = now * 0.001;
 
-    // BPM / time + beat driven cycling
+    // Time + beat driven cascade
     if (now - State.lastCycleAt > CYCLE_MS) {
       AssetChain.cycle();
       State.lastCycleAt = now;
@@ -404,49 +587,43 @@ const VisualLayer = {
       State.lastCycleAt = now;
     }
 
-    // update BPM label occasionally
     if (Math.floor(t * 2) % 2 === 0) this.updateModeLabel();
 
-    // Camera gentle drift toward touch
+    // Touch steers camera
     if (this.camera) {
-      this.camera.alpha += this.touchTarget.x * 0.012;
+      this.camera.alpha += this.touchTarget.x * 0.015;
       this.camera.beta = BABYLON.Scalar.Clamp(
-        this.camera.beta - this.touchTarget.y * 0.01,
-        0.25, Math.PI - 0.25
+        this.camera.beta - this.touchTarget.y * 0.012,
+        0.28, Math.PI - 0.28
       );
     }
 
-    // Animate each mesh with audio
     const mode = GRAVITY_MODES[this.gravityMode];
     this.meshes.forEach((entry, i) => {
       const { mesh, mat, basePos, phase, rotSpeed } = entry;
 
-      // rotation driven by intensity + bass
-      mesh.rotation.x += rotSpeed.x * (1 + intensity * 3 + bass * 2);
-      mesh.rotation.y += rotSpeed.y * (1 + intensity * 2.5);
-      mesh.rotation.z += rotSpeed.z * (1 + bass * 1.5);
+      mesh.rotation.x += rotSpeed.x * (1 + intensity * 2.6 + bass * 1.7);
+      mesh.rotation.y += rotSpeed.y * (1 + intensity * 2.1);
+      mesh.rotation.z += rotSpeed.z * (1 + bass * 1.3);
 
-      // scale pulse
-      const pulse = 1 + intensity * 0.35 + bass * 0.45 * (i % 2 === 0 ? 1 : 0.6);
+      const pulse = 1 + intensity * 0.28 + bass * 0.38 * (i % 2 === 0 ? 1 : 0.55);
       mesh.scaling.setAll(pulse);
 
-      // position sway + gravity modes
-      let yOff = Math.sin(t * 0.7 + phase) * 0.9;
-      if (mode === 'fall') yOff -= (t * 0.4 + i) % 6 - 3;
-      if (mode === 'rise') yOff += (t * 0.4 + i) % 6 - 3;
+      let yOff = Math.sin(t * 0.6 + phase) * 0.7;
+      if (mode === 'fall') yOff -= ((t * 0.32 + i) % 4.5) - 2.2;
+      if (mode === 'rise') yOff += ((t * 0.32 + i) % 4.5) - 2.2;
 
-      mesh.position.x = basePos.x + Math.cos(t * 0.5 + phase) * (0.8 + intensity);
+      mesh.position.x = basePos.x + Math.cos(t * 0.42 + phase) * (0.65 + intensity * 0.7);
       mesh.position.y = basePos.y + yOff;
-      mesh.position.z = basePos.z + Math.sin(t * 0.55 + phase) * (0.8 + intensity);
+      mesh.position.z = basePos.z + Math.sin(t * 0.48 + phase) * (0.65 + intensity * 0.7);
 
-      // emissive glow from bass
-      const glow = 0.2 + bass * 0.7 + intensity * 0.3;
-      mat.emissiveColor.set(glow, glow * 0.85, glow * 0.7);
+      // Audio-reactive glow so the wrapped image itself lights up
+      const glow = 0.3 + bass * 0.55 + intensity * 0.25;
+      mat.emissiveColor.set(glow, glow * 0.9, glow * 0.8);
     });
 
-    // subtle sky rotation
     if (this.skyMesh) {
-      this.skyMesh.rotation.y += 0.0008 + intensity * 0.002;
+      this.skyMesh.rotation.y += 0.0006 + intensity * 0.0015;
     }
 
     this.scene.render();
@@ -475,16 +652,15 @@ const UILayer = {
         State.trackIndex = i;
         AudioLayer.loadTrack(i);
         this.togglePlaylist();
-      });
+      }, { passive: false });
       list.appendChild(item);
     });
   }
 };
 
-/* ───────────── Input (touch only via event listeners) ───────────── */
+/* ───────────── Touch-only input ───────────── */
 const InputLayer = {
   pointerId: null,
-
   start() {
     if (State.started) return;
     AudioLayer.init();
@@ -495,7 +671,6 @@ const InputLayer = {
     State.lastCycleAt = performance.now();
     AudioLayer.loadTrack(0);
   },
-
   skip(n) {
     if (!State.started) return;
     State.trackIndex = (State.trackIndex + n + playlist.length) % playlist.length;
@@ -503,38 +678,30 @@ const InputLayer = {
   }
 };
 
-/* Bind all controls with event listeners – no inline handlers */
-document.getElementById('btn-play').addEventListener('pointerdown', (e) => {
-  e.stopPropagation();
+function bindPointer(id, fn) {
+  const el = document.getElementById(id);
+  el.addEventListener('pointerdown', (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    fn(e);
+  }, { passive: false });
+}
+
+bindPointer('btn-play', () => {
   if (!State.started) InputLayer.start();
   else AudioLayer.toggle();
 });
-document.getElementById('btn-skip').addEventListener('pointerdown', (e) => {
-  e.stopPropagation();
-  InputLayer.skip(1);
-});
-document.getElementById('btn-color').addEventListener('pointerdown', (e) => {
-  e.stopPropagation();
-  UILayer.changeColor();
-});
-document.getElementById('btn-gravity').addEventListener('pointerdown', (e) => {
-  e.stopPropagation();
-  VisualLayer.cycleGravityMode();
-});
-document.getElementById('btn-playlist').addEventListener('pointerdown', (e) => {
-  e.stopPropagation();
-  UILayer.togglePlaylist();
-});
-document.getElementById('close-playlist').addEventListener('pointerdown', (e) => {
-  e.stopPropagation();
-  UILayer.togglePlaylist();
-});
+bindPointer('btn-skip', () => InputLayer.skip(1));
+bindPointer('btn-color', () => UILayer.changeColor());
+bindPointer('btn-gravity', () => VisualLayer.cycleGravityMode());
+bindPointer('btn-playlist', () => UILayer.togglePlaylist());
+bindPointer('close-playlist', () => UILayer.togglePlaylist());
+
 document.getElementById('vol-slider').addEventListener('input', (e) => {
   AudioLayer.setVolume(e.target.value);
 });
 document.getElementById('vol-slider').addEventListener('pointerdown', (e) => e.stopPropagation());
 
-/* Canvas / body touch handling */
 const canvas = document.getElementById('renderCanvas');
 canvas.addEventListener('pointerdown', (e) => {
   e.preventDefault();
@@ -544,39 +711,61 @@ canvas.addEventListener('pointerdown', (e) => {
   }
   AudioLayer.ensureRunning();
   InputLayer.pointerId = e.pointerId;
-  canvas.setPointerCapture(e.pointerId);
+  try { canvas.setPointerCapture(e.pointerId); } catch (_) {}
   VisualLayer.registerTouch(e.clientX, e.clientY);
-  // also force a visual cycle on hard touch
-  AssetChain.cycle();
+  // hard touch also advances the lineup
+  AssetChain.cycle(true);
   State.lastCycleAt = performance.now();
-});
+}, { passive: false });
+
 canvas.addEventListener('pointermove', (e) => {
   if (e.pointerId !== InputLayer.pointerId) return;
   VisualLayer.registerTouch(e.clientX, e.clientY);
-});
+}, { passive: true });
+
 canvas.addEventListener('pointerup', (e) => {
   if (e.pointerId === InputLayer.pointerId) {
     InputLayer.pointerId = null;
-    canvas.releasePointerCapture(e.pointerId);
+    try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
   }
-});
-canvas.addEventListener('pointercancel', (e) => {
-  if (e.pointerId === InputLayer.pointerId) {
-    InputLayer.pointerId = null;
-  }
-});
+}, { passive: true });
 
-// Prevent HUD from starting the engine accidentally, but allow buttons
+canvas.addEventListener('pointercancel', (e) => {
+  if (e.pointerId === InputLayer.pointerId) InputLayer.pointerId = null;
+}, { passive: true });
+
 document.getElementById('hud').addEventListener('pointerdown', (e) => {
   if (e.target.closest('.btn') || e.target.id === 'vol-slider') return;
   e.stopPropagation();
-});
+}, { passive: false });
 
 AudioLayer.audio.addEventListener('ended', () => InputLayer.skip(1));
 AudioLayer.audio.addEventListener('error', () => InputLayer.skip(1));
 
+/* PWA install */
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  State.deferredPrompt = e;
+  const banner = document.getElementById('install-banner');
+  banner.style.display = 'block';
+  banner.addEventListener('pointerdown', async () => {
+    banner.style.display = 'none';
+    if (State.deferredPrompt) {
+      State.deferredPrompt.prompt();
+      await State.deferredPrompt.userChoice;
+      State.deferredPrompt = null;
+    }
+  }, { once: true, passive: true });
+});
+window.addEventListener('appinstalled', () => {
+  document.getElementById('install-banner').style.display = 'none';
+  State.deferredPrompt = null;
+});
+
 if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js').catch(() => {});
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js', { scope: './' }).catch(() => {});
+  });
 }
 </script>
 </body>
